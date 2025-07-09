@@ -54,11 +54,33 @@ function Dashboard() {
   const graphCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  const getChartDomain = (data: StockData['chartData']): [number, number] => {
+    if (!data || data.length === 0) {
+      return [0, 100]; // Default domain if no data
+    }
+    
+    const values = data.flatMap(d => [d.price, d.prediction])
+                       .filter(v => typeof v === 'number') as number[];
+
+    if (values.length === 0) {
+      return [0, 100];
+    }
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    
+    // Add some padding to prevent lines from touching the edges
+    const padding = (max - min) * 0.1 || 10;
+
+    return [Math.floor(min - padding), Math.ceil(max + padding)];
+  };
+
   const selectedStockData = selectedTicker ? stockDetails[selectedTicker] : null;
   const selectedStock = selectedStockData?.stock;
   const currentChartData = selectedStockData?.chartData || [];
   const currentOpinion = selectedStockData?.opinion;
   const isOpinionLoading = selectedStockData?.opinionLoading;
+  const chartDomain = getChartDomain(currentChartData);
 
   const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
@@ -218,7 +240,7 @@ function Dashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
                 <XAxis dataKey="date" />
-                <YAxis domain={['dataMin - 100', 'dataMax + 100']} tickFormatter={(value) => `₹${value}`} />
+                <YAxis domain={chartDomain} tickFormatter={(value) => `₹${value}`} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
