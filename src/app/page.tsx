@@ -77,7 +77,14 @@ function Dashboard() {
       const dataArray = await getStockData({ tickers: [upperTicker] });
 
       if (!dataArray || dataArray.length === 0) {
-        throw new Error(`No data returned for ${upperTicker}`);
+        toast({
+          title: "Error",
+          description: `Could not find data for the stock: ${upperTicker}. Please try again.`,
+          variant: "destructive",
+        });
+        // Revert selection if the fetch fails
+        setSelectedTicker(prev => prev === upperTicker ? (watchlist.length > 0 ? watchlist[0].ticker : null) : prev);
+        return;
       }
       const data = dataArray[0];
 
@@ -119,7 +126,8 @@ function Dashboard() {
                 const allStockData = await getStockData({ tickers: allTickers });
                 
                 if (!allStockData || allStockData.length === 0) {
-                  throw new Error("API failed to return initial stock data.");
+                  toast({ title: "Error", description: "Could not load initial stock data. This may be due to API rate limits.", variant: "destructive" });
+                  return;
                 }
 
                 const newDetails: Record<string, StockDataOutput[0]> = {};
