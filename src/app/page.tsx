@@ -140,17 +140,20 @@ function Dashboard() {
                 setIsGraphLoading(false);
             }
 
-            // 3. Fetch the rest of the watchlist in the background.
+            // 3. Fetch the rest of the watchlist sequentially in the background to avoid rate limiting.
             const otherStocks = initialWatchlist.filter(s => s.ticker !== stockToLoadFirst.ticker);
-            await Promise.all(otherStocks.map(async (stock) => {
+            
+            for (const stock of otherStocks) {
                 try {
                     const data = await getStockData({ ticker: stock.ticker });
+                    // Use functional updates for state setters inside a loop
                     setWatchlist(prev => prev.map(s => s.ticker === data.stock.ticker ? data.stock : s));
                     setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
                 } catch (err) {
+                    // Log errors for background fetches but don't show a toast for each one.
                     console.error(`Failed to load background data for ${stock.ticker}`, err);
                 }
-            }));
+            }
         };
 
         loadInitialData();
