@@ -44,7 +44,6 @@ function Dashboard() {
   const [watchlist, setWatchlist] = useState<Stock[]>(initialWatchlist);
   const [stockChartData, setStockChartData] = useState<Record<string, ChartData[]>>({});
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isGraphLoading, setIsGraphLoading] = useState(true);
   const [opinion, setOpinion] = useState<string | null>(null);
   const [isOpinionLoading, setIsOpinionLoading] = useState(false);
@@ -107,6 +106,7 @@ function Dashboard() {
         description: `Could not find data for the stock: ${upperTicker}. Please try again.`,
         variant: "destructive",
       });
+      // Don't clear selected stock on error, keep the old one visible.
     } finally {
       setIsGraphLoading(false);
     }
@@ -118,7 +118,6 @@ function Dashboard() {
     const ticker = searchParams.get('ticker')?.toUpperCase();
 
     if (!hasLoadedInitialStock) {
-        setIsLoading(true);
         setIsGraphLoading(true);
 
         const loadInitialData = async () => {
@@ -139,7 +138,6 @@ function Dashboard() {
                 console.error("Failed to load initial stock:", error);
                 toast({ title: "Error", description: "Could not load initial stock data.", variant: "destructive" });
                 setIsGraphLoading(false);
-                setIsLoading(false);
             }
 
             // 3. Fetch the rest of the watchlist in the background.
@@ -153,7 +151,6 @@ function Dashboard() {
                     console.error(`Failed to load background data for ${stock.ticker}`, err);
                 }
             }));
-            setIsLoading(false); // All stocks are now loaded or have failed
         };
 
         loadInitialData();
@@ -293,21 +290,14 @@ function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                    Array.from({ length: 5 }).map((_, index) => (
-                        <TableRow key={index}>
-                            <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-5 w-20 float-right" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-5 w-24 float-right" /></TableCell>
-                        </TableRow>
-                    ))
-                ) : (
-                watchlist.map((stock) => (
+                {watchlist.map((stock) => (
                   <TableRow 
                     key={stock.ticker}
-                    onClick={() => handleStockSelection(stock.ticker)}
-                    className="cursor-pointer"
+                    onClick={() => stock.price > 0 && handleStockSelection(stock.ticker)}
+                    className={cn(
+                      "transition-colors",
+                      stock.price > 0 ? "cursor-pointer" : "cursor-wait"
+                    )}
                     data-state={selectedStock?.ticker === stock.ticker ? "selected" : "unselected"}
                   >
                     <TableCell>
@@ -320,13 +310,13 @@ function Dashboard() {
                     <TableCell
                       className={cn(
                         "text-right",
-                        stock.changePercent >= 0 ? "text-green-500" : "text-red-500"
+                         stock.price === 0 ? "text-muted-foreground" : stock.changePercent >= 0 ? "text-green-500" : "text-red-500"
                       )}
                     >
                       {stock.price > 0 ? `${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)` : <Skeleton className="h-5 w-24 float-right" />}
                     </TableCell>
                   </TableRow>
-                )))}
+                ))}
               </TableBody>
             </Table>
           </CardContent>
