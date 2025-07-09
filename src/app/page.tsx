@@ -14,11 +14,13 @@ import {
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { MainLayout } from "@/components/main-layout";
 import type { ChartData, Index, Stock } from "@/lib/types";
-import { ArrowDownRight, ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Lightbulb, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { getStockData, type StockDataOutput } from "@/ai/flows/stock-flow";
+import { getStockOpinion, type StockOpinionOutput } from "@/ai/flows/stock-opinion-flow";
 
 const indices: Index[] = [
   { name: "NIFTY 50", value: "23,537.85", change: "+66.70", changePercent: 0.28 },
@@ -26,165 +28,95 @@ const indices: Index[] = [
   { name: "NIFTY BANK", value: "51,703.95", change: "+385.20", changePercent: 0.75 },
 ];
 
-const mockStockData: Record<string, { stock: Stock, chartData: ChartData[] }> = {
-  "RELIANCE": {
-    stock: { ticker: "RELIANCE", name: "Reliance Industries Ltd.", price: 2960.55, change: 55.15, changePercent: 1.90 },
-    chartData: [
-      { date: 'Jan', price: 2700, prediction: 2710 },
-      { date: 'Feb', price: 2750, prediction: 2760 },
-      { date: 'Mar', price: 2800, prediction: 2810 },
-      { date: 'Apr', price: 2850, prediction: 2860 },
-      { date: 'May', price: 2900, prediction: 2910 },
-      { date: 'Jun', price: 2960.55, prediction: 2960.55 },
-      { date: 'Jul', prediction: 3010 },
-      { date: 'Aug', prediction: 3050 },
-      { date: 'Sep', prediction: 3100 },
-      { date: 'Oct', prediction: 3150 },
-    ]
-  },
-  "ADANIENT": {
-    stock: { ticker: "ADANIENT", name: "Adani Enterprises Ltd.", price: 3185.00, change: -65.00, changePercent: -2.00 },
-    chartData: [
-        { date: 'Jan', price: 3400, prediction: 3410 },
-        { date: 'Feb', price: 3350, prediction: 3360 },
-        { date: 'Mar', price: 3300, prediction: 3310 },
-        { date: 'Apr', price: 3250, prediction: 3260 },
-        { date: 'May', price: 3200, prediction: 3210 },
-        { date: 'Jun', price: 3185.00, prediction: 3185.00 },
-        { date: 'Jul', prediction: 3150 },
-        { date: 'Aug', prediction: 3120 },
-        { date: 'Sep', prediction: 3100 },
-        { date: 'Oct', prediction: 3080 },
-    ]
-  },
-  "TCS": {
-      stock: { ticker: "TCS", name: "Tata Consultancy Services", price: 3820.75, change: 20.25, changePercent: 0.53 },
-      chartData: [
-        { date: 'Jan', price: 3600, prediction: 3610 },
-        { date: 'Feb', price: 3650, prediction: 3660 },
-        { date: 'Mar', price: 3700, prediction: 3710 },
-        { date: 'Apr', price: 3750, prediction: 3760 },
-        { date: 'May', price: 3800, prediction: 3810 },
-        { date: 'Jun', price: 3820.75, prediction: 3820.75 },
-        { date: 'Jul', prediction: 3850 },
-        { date: 'Aug', prediction: 3880 },
-        { date: 'Sep', prediction: 3910 },
-        { date: 'Oct', prediction: 3940 },
-      ]
-  },
-  "HDFCBANK": {
-      stock: { ticker: "HDFCBANK", name: "HDFC Bank Ltd.", price: 1650.45, change: 15.80, changePercent: 0.97 },
-      chartData: [
-        { date: 'Jan', price: 1500, prediction: 1510 },
-        { date: 'Feb', price: 1550, prediction: 1560 },
-        { date: 'Mar', price: 1600, prediction: 1610 },
-        { date: 'Apr', price: 1620, prediction: 1630 },
-        { date: 'May', price: 1640, prediction: 1645 },
-        { date: 'Jun', price: 1650.45, prediction: 1650.45 },
-        { date: 'Jul', prediction: 1670 },
-        { date: 'Aug', prediction: 1690 },
-        { date: 'Sep', prediction: 1710 },
-        { date: 'Oct', prediction: 1730 },
-      ]
-  },
-  "INFY": {
-      stock: { ticker: "INFY", name: "Infosys Ltd.", price: 1550.80, change: 12.10, changePercent: 0.79 },
-      chartData: [
-        { date: 'Jan', price: 1400, prediction: 1410 },
-        { date: 'Feb', price: 1420, prediction: 1430 },
-        { date: 'Mar', price: 1450, prediction: 1460 },
-        { date: 'Apr', price: 1480, prediction: 1490 },
-        { date: 'May', price: 1520, prediction: 1525 },
-        { date: 'Jun', price: 1550.80, prediction: 1550.80 },
-        { date: 'Jul', prediction: 1570 },
-        { date: 'Aug', prediction: 1590 },
-        { date: 'Sep', prediction: 1610 },
-        { date: 'Oct', prediction: 1630 },
-      ]
-  },
-};
-
-const initialWatchlist: Stock[] = Object.values(mockStockData).map(d => d.stock);
-const initialChartData = Object.entries(mockStockData).reduce((acc, [key, value]) => {
-    acc[key] = value.chartData;
-    return acc;
-}, {} as Record<string, ChartData[]>);
+const initialWatchlist: Stock[] = [
+    { ticker: "RELIANCE", name: "Reliance Industries", price: 0, change: 0, changePercent: 0 },
+    { ticker: "TCS", name: "Tata Consultancy", price: 0, change: 0, changePercent: 0 },
+    { ticker: "HDFCBANK", name: "HDFC Bank", price: 0, change: 0, changePercent: 0 },
+    { ticker: "INFY", name: "Infosys", price: 0, change: 0, changePercent: 0 },
+    { ticker: "ADANIENT", name: "Adani Enterprises", price: 0, change: 0, changePercent: 0 },
+];
 
 function Dashboard() {
   const searchParams = useSearchParams();
   const [watchlist, setWatchlist] = useState<Stock[]>(initialWatchlist);
-  const [stockChartData, setStockChartData] = useState<Record<string, ChartData[]>>(initialChartData);
+  const [stockChartData, setStockChartData] = useState<Record<string, ChartData[]>>({});
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [opinion, setOpinion] = useState<string | null>(null);
+  const [isOpinionLoading, setIsOpinionLoading] = useState(false);
   const graphCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const handleStockSelection = useCallback((ticker: string) => {
+  const handleStockSelection = useCallback(async (ticker: string) => {
     setIsLoading(true);
+    setIsOpinionLoading(true);
+    setOpinion(null); // Clear previous opinion
+    const upperTicker = ticker.toUpperCase();
+
     if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-
-    const upperTicker = ticker.toUpperCase();
-    const data = mockStockData[upperTicker];
-
-    if (data) {
-        setSelectedStock(data.stock);
-        setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
-    } else {
-        // Create new mock data for the searched ticker
-        toast({
-          title: "Generating Mock Data",
-          description: `Displaying fictional data for ${upperTicker}.`,
-        });
-
-        const newMockStock: Stock = {
-            ticker: upperTicker,
-            name: `${upperTicker} (Fictional Data)`,
-            price: parseFloat((Math.random() * (5000 - 100) + 100).toFixed(2)),
-            change: parseFloat((Math.random() * 100 - 50).toFixed(2)),
-            changePercent: parseFloat((Math.random() * 5 - 2.5).toFixed(2))
-        };
-        
-        const newMockChartData: ChartData[] = Array.from({ length: 10 }, (_, i) => {
-            const date = new Date();
-            date.setMonth(date.getMonth() - (5 - i));
-            const month = date.toLocaleString('default', { month: 'short' });
-
-            if (i < 6) { // Historical data
-                const price = newMockStock.price * (1 + (Math.random() - 0.5) * 0.2 * (1 - (5 - i) / 5));
-                return { 
-                    date: month, 
-                    price: i === 5 ? newMockStock.price : parseFloat(price.toFixed(2)),
-                    prediction: parseFloat((price * (1 + (Math.random() - 0.45) * 0.05)).toFixed(2))
-                };
-            }
-            // Future prediction
-            const predictionPrice = newMockStock.price * (1 + (Math.random() - 0.4) * 0.2 * (1 + (i - 5) / 4));
-            return { 
-                date: month, 
-                prediction: parseFloat(predictionPrice.toFixed(2)) 
-            };
-        });
-        
-        const lastHistorical = newMockChartData[5];
-        if (lastHistorical && lastHistorical.price) {
-            lastHistorical.price = newMockStock.price;
-            lastHistorical.prediction = newMockStock.price;
-        }
-
-        setSelectedStock(newMockStock);
-        setStockChartData(prev => ({ ...prev, [upperTicker]: newMockChartData }));
-        setWatchlist(prev => {
-            if (prev.some(s => s.ticker === upperTicker)) {
-                return prev.map(s => s.ticker === upperTicker ? newMockStock : s);
-            }
-            return [...prev, newMockStock];
-        });
-    }
     
-    setTimeout(() => setIsLoading(false), 300);
+    try {
+      const data = await getStockData({ ticker: upperTicker });
+      setSelectedStock(data.stock);
+      setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
+      
+      // Update watchlist if the stock is in it, or add if it's new
+      setWatchlist(prev => {
+        const stockExists = prev.some(s => s.ticker === upperTicker);
+        if (stockExists) {
+            return prev.map(s => s.ticker === upperTicker ? data.stock : s);
+        }
+        return [data.stock, ...prev];
+      });
+
+      // Fetch opinion after getting stock data
+      try {
+        const opinionData = await getStockOpinion({ ticker: data.stock.ticker, name: data.stock.name });
+        setOpinion(opinionData.opinion);
+      } catch (opinionError) {
+        console.error("Failed to get stock opinion:", opinionError);
+        setOpinion("Disclaimer: This is an AI-generated analysis and not financial advice. Failed to generate an opinion for this stock at this time.");
+      } finally {
+        setIsOpinionLoading(false);
+      }
+
+    } catch (error) {
+      console.error("Failed to get stock data:", error);
+      toast({
+        title: "Error",
+        description: `Could not find data for the stock: ${upperTicker}. Please try another.`,
+        variant: "destructive",
+      });
+      // If the main data fetch fails, we should not proceed.
+      setSelectedStock(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, [toast]);
+  
+  // Effect to fetch initial data for the default watchlist on component mount
+  useEffect(() => {
+    const fetchWatchlistData = async () => {
+      const updatedWatchlist = await Promise.all(
+        initialWatchlist.map(async (stock) => {
+          try {
+            const data = await getStockData({ ticker: stock.ticker });
+            setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
+            return data.stock;
+          } catch (e) {
+            console.error(`Failed to fetch initial data for ${stock.ticker}`, e);
+            return stock; // Return original stock on error
+          }
+        })
+      );
+      setWatchlist(updatedWatchlist);
+    };
+
+    fetchWatchlistData();
+  }, []);
+
 
   useEffect(() => {
     const ticker = searchParams.get('ticker');
@@ -287,6 +219,26 @@ function Dashboard() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lightbulb className="h-6 w-6 text-yellow-400" />
+              AI Financial Opinion
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isOpinionLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : (
+              <p className="text-muted-foreground">{opinion}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Watchlist</CardTitle>
           </CardHeader>
           <CardContent>
@@ -312,7 +264,7 @@ function Dashboard() {
                     </TableCell>
                     <TableCell>{stock.name}</TableCell>
                     <TableCell className="text-right font-medium">
-                        {`₹${stock.price.toFixed(2)}`}
+                        {stock.price > 0 ? `₹${stock.price.toFixed(2)}` : <Skeleton className="h-5 w-20 float-right" />}
                     </TableCell>
                     <TableCell
                       className={cn(
@@ -320,7 +272,7 @@ function Dashboard() {
                         stock.changePercent >= 0 ? "text-green-500" : "text-red-500"
                       )}
                     >
-                      {`${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)`}
+                      {stock.price > 0 ? `${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)` : <Skeleton className="h-5 w-24 float-right" />}
                     </TableCell>
                   </TableRow>
                 ))}
