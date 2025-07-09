@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState } from "react";
 import { MainLayout } from "@/components/main-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,33 +26,75 @@ import { Holding } from "@/lib/types";
 import { ArrowDown, ArrowUp, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
-const holdings: Holding[] = [
+
+const initialHoldings: Holding[] = [
   { ticker: "AAPL", name: "Apple Inc.", shares: 50, avgCost: 150.00, currentPrice: 194.82 },
   { ticker: "GOOGL", name: "Alphabet Inc.", shares: 20, avgCost: 135.50, currentPrice: 177.07 },
   { ticker: "MSFT", name: "Microsoft Corp.", shares: 30, avgCost: 300.25, currentPrice: 423.85 },
 ];
 
 const PortfolioPage = () => {
+  const [holdings, setHoldings] = useState<Holding[]>(initialHoldings);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newStock, setNewStock] = useState({ ticker: '', shares: '', price: '' });
+  const { toast } = useToast();
+
   const totalValue = holdings.reduce((acc, h) => acc + h.shares * h.currentPrice, 0);
   const totalCost = holdings.reduce((acc, h) => acc + h.shares * h.avgCost, 0);
   const totalGainLoss = totalValue - totalCost;
-  const totalGainLossPercent = (totalGainLoss / totalCost) * 100;
+  const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
   // Mock day's gain/loss
   const dayGainLoss = 253.78;
-  const dayGainLossPercent = (dayGainLoss / (totalValue - dayGainLoss)) * 100;
+  const dayGainLossPercent = (totalValue - dayGainLoss) !== 0 ? (dayGainLoss / (totalValue - dayGainLoss)) * 100 : 0;
+
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setNewStock(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleAddStock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { ticker, shares, price } = newStock;
+    
+    if (!ticker || !shares || !price || parseFloat(shares) <= 0 || parseFloat(price) < 0) {
+        toast({
+          title: "Invalid Input",
+          description: "Please fill out all fields with valid numbers.",
+          variant: "destructive",
+        })
+        return;
+    }
+
+    const newHolding: Holding = {
+        ticker: ticker.toUpperCase(),
+        name: `${ticker.toUpperCase()} - (Custom)`,
+        shares: parseFloat(shares),
+        avgCost: parseFloat(price),
+        currentPrice: parseFloat(price),
+    };
+
+    setHoldings(prevHoldings => [...prevHoldings, newHolding]);
+    setNewStock({ ticker: '', shares: '', price: '' });
+    setIsDialogOpen(false);
+    toast({
+      title: "Stock Added",
+      description: `${shares} shares of ${ticker.toUpperCase()} added to your portfolio.`,
+    })
+  };
+
 
   return (
     <MainLayout>
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">My Portfolio</h1>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Stock
-              </Button>
-            </DialogTrigger>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Stock
+            </Button>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Add New Stock</DialogTitle>
@@ -60,23 +102,25 @@ const PortfolioPage = () => {
                   Enter the details of the stock you want to add to your portfolio.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="ticker" className="text-right">Ticker</Label>
-                  <Input id="ticker" placeholder="e.g., AAPL" className="col-span-3" />
+              <form onSubmit={handleAddStock}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="ticker" className="text-right">Ticker</Label>
+                    <Input id="ticker" placeholder="e.g., AAPL" className="col-span-3" value={newStock.ticker} onChange={handleInputChange} />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="shares" className="text-right">Shares</Label>
+                    <Input id="shares" type="number" placeholder="e.g., 10" className="col-span-3" value={newStock.shares} onChange={handleInputChange}/>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="price" className="text-right">Purchase Price</Label>
+                    <Input id="price" type="number" placeholder="e.g., 150.00" className="col-span-3" value={newStock.price} onChange={handleInputChange}/>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="shares" className="text-right">Shares</Label>
-                  <Input id="shares" type="number" placeholder="e.g., 10" className="col-span-3" />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="price" className="text-right">Purchase Price</Label>
-                  <Input id="price" type="number" placeholder="e.g., 150.00" className="col-span-3" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Add to Portfolio</Button>
-              </DialogFooter>
+                <DialogFooter>
+                  <Button type="submit">Add to Portfolio</Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -141,7 +185,7 @@ const PortfolioPage = () => {
                   const totalValue = h.shares * h.currentPrice;
                   const totalCost = h.shares * h.avgCost;
                   const gainLoss = totalValue - totalCost;
-                  const gainLossPercent = (gainLoss / totalCost) * 100;
+                  const gainLossPercent = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
                   return (
                     <TableRow key={h.ticker}>
                       <TableCell>
