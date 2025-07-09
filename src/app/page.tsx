@@ -110,15 +110,16 @@ function Dashboard() {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // If data exists, just fetch opinion if needed
+    // If data for the stock exists, we just need to select it
+    // and maybe fetch the opinion if it's missing.
     if (stockDetails[upperTicker]) {
       if (!stockDetails[upperTicker].opinion && !stockDetails[upperTicker].opinionLoading) {
         fetchOpinionForStock(upperTicker, stockDetails[upperTicker].stock.name);
       }
       return;
     }
-
-    // If data for the stock does not exist, fetch everything
+    
+    // If data for the stock does not exist (e.g., from a new search), fetch it.
     setIsGraphLoading(true);
 
     try {
@@ -127,7 +128,7 @@ function Dashboard() {
         if (!dataArray || dataArray.length === 0) {
           toast({
               title: "Data Not Found",
-              description: `Could not load data for ${upperTicker}. Please check the ticker.`,
+              description: `Could not load data for ${upperTicker}. The API may be busy or the ticker may not be supported. Please try again shortly.`,
               variant: "destructive",
           });
           setIsGraphLoading(false);
@@ -141,6 +142,7 @@ function Dashboard() {
             return !stockExists ? [data.stock, ...prev] : prev.map(s => s.ticker === upperTicker ? data.stock : s);
         });
 
+        // Now fetch the opinion for the newly loaded stock.
         fetchOpinionForStock(upperTicker, data.stock.name);
 
     } catch (error) {
@@ -155,7 +157,7 @@ function Dashboard() {
     }
   }, [stockDetails, toast, fetchOpinionForStock]);
 
-  // Effect for initial data load
+  // Effect for initial data load of the whole watchlist
   useEffect(() => {
     const loadInitialData = async () => {
       setIsGraphLoading(true);
@@ -166,9 +168,12 @@ function Dashboard() {
         if (!allStockData || allStockData.length === 0) {
           toast({
             title: "API Error",
-            description: "Could not load watchlist data. The API may be busy. Please refresh.",
+            description: "Could not load initial watchlist data. Please refresh.",
             variant: "destructive",
           });
+          // Still need to set loading states to false
+          setIsGraphLoading(false);
+          setInitialLoadComplete(true);
           return;
         }
 
@@ -181,14 +186,10 @@ function Dashboard() {
         setWatchlist(updatedWatchlist);
         setStockDetails(newDetails);
 
-        const searchTicker = searchParams.get('ticker')?.toUpperCase();
-        const tickerToSelect = searchTicker && newDetails[searchTicker] ? searchTicker : (allStockData[0]?.stock.ticker || null);
+        const tickerToSelect = allStockData[0]?.stock.ticker || null;
         
         if (tickerToSelect) {
-            setSelectedTicker(tickerToSelect);
-            if (!newDetails[tickerToSelect].opinion) {
-                fetchOpinionForStock(tickerToSelect, newDetails[tickerToSelect].stock.name);
-            }
+            handleStockSelection(tickerToSelect);
         }
 
       } catch (error) {
@@ -207,7 +208,7 @@ function Dashboard() {
     if (!initialLoadComplete) {
       loadInitialData();
     }
-  }, [initialLoadComplete, toast, fetchOpinionForStock, searchParams]);
+  }, [initialLoadComplete, toast, handleStockSelection]);
   
   // Effect to handle subsequent searches from the URL
   useEffect(() => {
@@ -436,3 +437,5 @@ function DashboardSkeleton() {
     </MainLayout>
   );
 }
+
+    
