@@ -34,6 +34,9 @@ const initialWatchlist: Stock[] = [
     { ticker: "HDFCBANK", name: "HDFC Bank", price: 0, change: 0, changePercent: 0 },
     { ticker: "INFY", name: "Infosys", price: 0, change: 0, changePercent: 0 },
     { ticker: "ADANIENT", name: "Adani Enterprises", price: 0, change: 0, changePercent: 0 },
+    { ticker: "WIPRO", name: "Wipro", price: 0, change: 0, changePercent: 0 },
+    { ticker: "TATAMOTORS", name: "Tata Motors", price: 0, change: 0, changePercent: 0 },
+    { ticker: "ITC", name: "ITC Limited", price: 0, change: 0, changePercent: 0 },
 ];
 
 function Dashboard() {
@@ -72,12 +75,18 @@ function Dashboard() {
         setSelectedStock(stockToSelect);
         fetchOpinion(stockToSelect);
       }
+      if (graphCardRef.current) {
+        graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       return;
     }
     
     // If data isn't loaded (e.g. from a new search), fetch it
     setIsGraphLoading(true);
     setOpinion(null);
+    if (graphCardRef.current) {
+      graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     
     try {
       const data = await getStockData({ ticker: upperTicker });
@@ -106,54 +115,55 @@ function Dashboard() {
 
   // Effect to handle initial load and subsequent searches
   useEffect(() => {
-    const hasLoaded = Object.keys(stockChartData).length > 0;
+    const hasLoadedInitialStock = selectedStock !== null;
     const ticker = searchParams.get('ticker')?.toUpperCase();
 
-    // Initial load: fetch all watchlist data
-    if (!hasLoaded) {
-      setIsLoading(true);
-      setIsGraphLoading(true);
-      
-      const loadInitialData = async () => {
-        try {
-          const results = await Promise.all(
-            initialWatchlist.map(stock => getStockData({ ticker: stock.ticker }))
-          );
-          
-          const newWatchlist = results.map(r => r.stock);
-          const newChartData = results.reduce((acc, r) => {
-            acc[r.stock.ticker] = r.chartData;
-            return acc;
-          }, {} as Record<string, ChartData[]>);
-          
-          setWatchlist(newWatchlist);
-          setStockChartData(newChartData);
+    if (!hasLoadedInitialStock) {
+        setIsLoading(true);
+        setIsGraphLoading(true);
 
-          const stockToSelect = newWatchlist.find(s => s.ticker === ticker) || newWatchlist[0];
-          setSelectedStock(stockToSelect);
-          fetchOpinion(stockToSelect);
-          
-        } catch (error) {
-          console.error("Failed to load initial watchlist data:", error);
-          toast({
-            title: "Error Loading Dashboard",
-            description: "Could not load initial market data.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoading(false);
-          setIsGraphLoading(false);
-        }
-      };
-      loadInitialData();
+        const loadInitialData = async () => {
+            // 1. Determine which stock to show first (from URL or default)
+            const stockToLoadFirst = initialWatchlist.find(s => s.ticker === ticker) || initialWatchlist[0];
+
+            // 2. Fetch and display the primary stock
+            try {
+                const data = await getStockData({ ticker: stockToLoadFirst.ticker });
+                
+                setSelectedStock(data.stock);
+                setStockChartData({ [data.stock.ticker]: data.chartData });
+                setWatchlist(prev => prev.map(s => s.ticker === data.stock.ticker ? data.stock : s));
+                
+                fetchOpinion(data.stock);
+                setIsGraphLoading(false);
+            } catch (error) {
+                console.error("Failed to load initial stock:", error);
+                toast({ title: "Error", description: "Could not load initial stock data.", variant: "destructive" });
+                setIsGraphLoading(false);
+                setIsLoading(false);
+            }
+
+            // 3. Fetch the rest of the watchlist in the background.
+            const otherStocks = initialWatchlist.filter(s => s.ticker !== stockToLoadFirst.ticker);
+            await Promise.all(otherStocks.map(async (stock) => {
+                try {
+                    const data = await getStockData({ ticker: stock.ticker });
+                    setWatchlist(prev => prev.map(s => s.ticker === data.stock.ticker ? data.stock : s));
+                    setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
+                } catch (err) {
+                    console.error(`Failed to load background data for ${stock.ticker}`, err);
+                }
+            }));
+            setIsLoading(false); // All stocks are now loaded or have failed
+        };
+
+        loadInitialData();
+
     } else if (ticker && ticker !== selectedStock?.ticker) {
-      // Handle subsequent searches
-      handleStockSelection(ticker);
-      if (graphCardRef.current) {
-        graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+        handleStockSelection(ticker);
     }
-  }, [searchParams, selectedStock, stockChartData, handleStockSelection, fetchOpinion, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const currentChartData = selectedStock ? stockChartData[selectedStock.ticker] : [];
 
@@ -284,7 +294,17 @@ function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {watchlist.map((stock) => (
+                {isLoading ? (
+                    Array.from({ length: 5 }).map((_, index) => (
+                        <TableRow key={index}>
+                            <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-5 w-20 float-right" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-5 w-24 float-right" /></TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                watchlist.map((stock) => (
                   <TableRow 
                     key={stock.ticker}
                     onClick={() => handleStockSelection(stock.ticker)}
@@ -307,7 +327,7 @@ function Dashboard() {
                       {stock.price > 0 ? `${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)` : <Skeleton className="h-5 w-24 float-right" />}
                     </TableCell>
                   </TableRow>
-                ))}
+                )))}
               </TableBody>
             </Table>
           </CardContent>
