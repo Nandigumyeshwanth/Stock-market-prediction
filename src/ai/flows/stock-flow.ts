@@ -41,22 +41,20 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: "You are a helpful financial data API. You will be given a stock ticker and you must return a valid JSON object that conforms to the provided output schema. The data you generate should be realistic but can be fictional.",
+  system: `You are a financial data API. You generate realistic but fictional stock data.
+You will be given a stock ticker. You MUST return a valid JSON object matching the output schema. Do not add any commentary.
+The data must be consistent. The 'price' in the main 'stock' object must be the same as the last 'price' in the 'chartData' array.
+The 'prediction' values should form a smooth continuation from the historical 'price' values.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
   prompt: `
-    Generate realistic, fictional stock market data for the given ticker symbol.
+    Generate data for the ticker: {{{ticker}}}.
 
-    Ticker: {{{ticker}}}
-
-    Provide the following:
-    1.  **Stock Details**: Full company name, a realistic current price, daily change (absolute and percentage).
-    2.  **Chart Data**: An array of exactly 10 data points for a chart.
-        - The data should represent the last 6 months of historical data and a 4-month future prediction.
-        - Use three-letter month abbreviations for the 'date' field.
-        - For the first 6 data points (historical), provide values for both 'price' and 'prediction'.
-        - For the last 4 data points (future), provide a value only for 'prediction'.
-        - The data should follow a believable trend.
+    Follow these rules for the chart data:
+    - Create exactly 10 data points.
+    - The first 6 points are historical. They MUST have both a 'price' and a 'prediction' value.
+    - The last 4 points are future predictions. They MUST have a 'prediction' value, but the 'price' value should be omitted.
+    - The 'date' should be a three-letter month abbreviation. Start with a month from 6 months ago and continue sequentially.
   `,
 });
 
@@ -71,21 +69,22 @@ const stockDataFlow = ai.defineFlow(
     const { output } = await prompt(input);
 
     if (!output) {
-      throw new Error('Failed to generate stock data.');
+      throw new Error('AI model failed to generate valid stock data.');
     }
     
-    // Ensure the last historical price matches the current price, a common failure point for LLMs.
-    const historicalData = output.chartData.filter(d => d.price !== undefined);
-    if (historicalData.length > 0) {
-      const lastHistoricalPoint = historicalData[historicalData.length - 1];
-      if (lastHistoricalPoint.price) {
-        output.stock.price = lastHistoricalPoint.price;
+    // Find the last data point that has a historical price.
+    const lastHistoricalDataIndex = output.chartData.findLastIndex(d => d.price !== undefined && d.price !== null);
 
-         // Also make sure the prediction starts from the last known price
-        const firstPredictionIndex = output.chartData.findIndex(d => d.price === undefined);
-        if (firstPredictionIndex > 0) {
-          output.chartData[firstPredictionIndex - 1].prediction = lastHistoricalPoint.price;
-        }
+    if (lastHistoricalDataIndex !== -1) {
+      const lastHistoricalPoint = output.chartData[lastHistoricalDataIndex];
+      
+      if (lastHistoricalPoint.price) {
+        // RULE 1: The current stock price must match the last known historical price.
+        output.stock.price = lastHistoricalPoint.price;
+        
+        // RULE 2: The prediction line should be continuous with the price line.
+        // Set the prediction value of the last historical point to be the same as its price.
+        lastHistoricalPoint.prediction = lastHistoricalPoint.price;
       }
     }
 
