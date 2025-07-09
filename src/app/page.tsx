@@ -26,11 +26,16 @@ const indices: Index[] = [
 ];
 
 const initialWatchlist: Stock[] = [
-  { ticker: "RELIANCE", name: "Reliance Industries Ltd.", price: 2960.55, change: 51.10, changePercent: 1.76 },
-  { ticker: "ADANIENT", name: "Adani Enterprises Ltd.", price: 3185.00, change: -25.50, changePercent: -0.79 },
-  { ticker: "TCS", name: "Tata Consultancy Services", price: 3820.75, change: 15.20, changePercent: 0.40 },
-  { ticker: "HDFCBANK", name: "HDFC Bank Ltd.", price: 1711.25, change: 48.45, changePercent: 2.91 },
-  { ticker: "INFY", name: "Infosys Ltd.", price: 1528.00, change: -5.75, changePercent: -0.37 },
+    { ticker: "RELIANCE", name: "Reliance Industries Ltd.", price: 2960.55, change: 51.10, changePercent: 1.76 },
+    { ticker: "ADANIENT", name: "Adani Enterprises Ltd.", price: 3185.00, change: -25.50, changePercent: -0.79 },
+    { ticker: "TCS", name: "Tata Consultancy Services", price: 3820.75, change: 15.20, changePercent: 0.40 },
+    { ticker: "HDFCBANK", name: "HDFC Bank Ltd.", price: 1711.25, change: 48.45, changePercent: 2.91 },
+    { ticker: "INFY", name: "Infosys Ltd.", price: 1528.00, change: -5.75, changePercent: -0.37 },
+    { ticker: "WIPRO", name: "Wipro Ltd.", price: 491.50, change: 2.75, changePercent: 0.56 },
+    { ticker: "TATAMOTORS", name: "Tata Motors Ltd.", price: 988.70, change: -10.15, changePercent: -1.02 },
+    { ticker: "ITC", name: "ITC Ltd.", price: 423.30, change: 1.50, changePercent: 0.36 },
+    { ticker: "ICICIBANK", name: "ICICI Bank Ltd.", price: 1157.85, change: 25.40, changePercent: 2.24 },
+    { ticker: "SBIN", name: "State Bank of India", price: 840.10, change: 7.90, changePercent: 0.95 },
 ];
 
 const initialStockChartData: Record<string, ChartData[]> = {
@@ -69,16 +74,52 @@ const initialStockChartData: Record<string, ChartData[]> = {
     { date: "Jul", price: 1528, prediction: 1560 }, { date: "Aug", price: undefined, prediction: 1580 },
     { date: "Sep", price: undefined, prediction: 1600 }, { date: "Oct", price: undefined, prediction: 1610 },
   ],
+  WIPRO: [
+    { date: "Jan", price: 450, prediction: 450 }, { date: "Feb", price: 460, prediction: 460 },
+    { date: "Mar", price: 475, prediction: 475 }, { date: "Apr", price: 480, prediction: 480 },
+    { date: "May", price: 485, prediction: 485 }, { date: "Jun", price: 491, prediction: 491 },
+    { date: "Jul", price: 491, prediction: 500 }, { date: "Aug", price: undefined, prediction: 510 },
+    { date: "Sep", price: undefined, prediction: 515 }, { date: "Oct", price: undefined, prediction: 520 },
+  ],
+  TATAMOTORS: [
+    { date: "Jan", price: 900, prediction: 900 }, { date: "Feb", price: 920, prediction: 920 },
+    { date: "Mar", price: 950, prediction: 950 }, { date: "Apr", price: 970, prediction: 970 },
+    { date: "May", price: 1000, prediction: 1000 }, { date: "Jun", price: 988, prediction: 988 },
+    { date: "Jul", price: 988, prediction: 1010 }, { date: "Aug", price: undefined, prediction: 1025 },
+    { date: "Sep", price: undefined, prediction: 1040 }, { date: "Oct", price: undefined, prediction: 1050 },
+  ],
+  ITC: [
+    { date: "Jan", price: 400, prediction: 400 }, { date: "Feb", price: 410, prediction: 410 },
+    { date: "Mar", price: 415, prediction: 415 }, { date: "Apr", price: 420, prediction: 420 },
+    { date: "May", price: 425, prediction: 425 }, { date: "Jun", price: 423, prediction: 423 },
+    { date: "Jul", price: 423, prediction: 430 }, { date: "Aug", price: undefined, prediction: 435 },
+    { date: "Sep", price: undefined, prediction: 440 }, { date: "Oct", price: undefined, prediction: 445 },
+  ],
+  ICICIBANK: [
+    { date: "Jan", price: 1050, prediction: 1050 }, { date: "Feb", price: 1080, prediction: 1080 },
+    { date: "Mar", price: 1100, prediction: 1100 }, { date: "Apr", price: 1120, prediction: 1120 },
+    { date: "May", price: 1140, prediction: 1140 }, { date: "Jun", price: 1157, prediction: 1157 },
+    { date: "Jul", price: 1157, prediction: 1180 }, { date: "Aug", price: undefined, prediction: 1200 },
+    { date: "Sep", price: undefined, prediction: 1210 }, { date: "Oct", price: undefined, prediction: 1225 },
+  ],
+  SBIN: [
+    { date: "Jan", price: 780, prediction: 780 }, { date: "Feb", price: 790, prediction: 790 },
+    { date: "Mar", price: 800, prediction: 800 }, { date: "Apr", price: 815, prediction: 815 },
+    { date: "May", price: 830, prediction: 830 }, { date: "Jun", price: 840, prediction: 840 },
+    { date: "Jul", price: 840, prediction: 850 }, { date: "Aug", price: undefined, prediction: 860 },
+    { date: "Sep", price: undefined, prediction: 875 }, { date: "Oct", price: undefined, prediction: 890 },
+  ],
 };
 
 const generateMockStockData = (ticker: string): { stock: Stock, chartData: ChartData[] } => {
+  const formattedName = ticker.charAt(0).toUpperCase() + ticker.slice(1).toLowerCase();
   const price = Math.random() * 4000 + 500;
   const change = (Math.random() - 0.5) * 100;
   const changePercent = (change / price) * 100;
 
   const stock: Stock = {
     ticker,
-    name: `${ticker} Company`,
+    name: `${formattedName} Ltd.`,
     price: parseFloat(price.toFixed(2)),
     change: parseFloat(change.toFixed(2)),
     changePercent: parseFloat(changePercent.toFixed(2)),
