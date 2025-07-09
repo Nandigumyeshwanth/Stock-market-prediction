@@ -32,6 +32,10 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+// This will act as our "database" for this client-side example.
+// It will reset on page refresh.
+let registeredUsers: RegisterFormValues[] = [];
+
 export default function RegisterPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -46,12 +50,24 @@ export default function RegisterPage() {
   });
 
   const onSubmit = (data: RegisterFormValues) => {
-    console.log("Registering user:", data);
-    toast({
-      title: "Account Created!",
-      description: "You have successfully created an account.",
-    });
-    router.push("/login");
+    const userExists = registeredUsers.some(user => user.email === data.email);
+
+    if (userExists) {
+        toast({
+            title: "Registration Failed",
+            description: "An account with this email already exists.",
+            variant: "destructive",
+        });
+    } else {
+        console.log("Registering user:", data);
+        // Add user to our mock "database"
+        registeredUsers.push(data);
+        toast({
+            title: "Account Created!",
+            description: "You have successfully created an account.",
+        });
+        router.push("/login");
+    }
   };
 
   return (
@@ -71,6 +87,7 @@ export default function RegisterPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Full name</FormLabel>
+
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
                   </FormControl>
