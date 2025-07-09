@@ -1,4 +1,3 @@
-
 "use client";
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
@@ -92,7 +91,7 @@ function Dashboard() {
       if (!dataArray || dataArray.length === 0) {
         toast({
             title: "API Error",
-            description: `Could not load data for ${upperTicker}. Please try again.`,
+            description: `Could not load data for ${upperTicker}. The API may be rate-limited. Please try again shortly.`,
             variant: "destructive",
         });
         // Revert UI changes on error
@@ -114,12 +113,13 @@ function Dashboard() {
       // Update watchlist
       setWatchlist(prev => {
         const stockExists = prev.some(s => s.ticker === upperTicker);
+        const newStock = { ...data.stock };
         if (!stockExists) {
-          return [data.stock, ...prev].slice(0, 10);
+          return [newStock, ...prev].slice(0, 10);
         }
-        return prev.map(s => s.ticker === upperTicker ? data.stock : s);
+        return prev.map(s => s.ticker === upperTicker ? newStock : s);
       });
-
+      
       // Step 2: Fetch opinion
       const { opinion } = await getStockOpinion({ ticker: data.stock.ticker, name: data.stock.name });
       setStockDetails(prev => ({ ...prev, [upperTicker]: { ...data, opinion, opinionLoading: false } }));
@@ -377,5 +377,5 @@ function DashboardSkeleton() {
         </Card>
       </div>
     </MainLayout>
-  )
+  );
 }
