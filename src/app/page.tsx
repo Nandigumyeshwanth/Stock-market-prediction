@@ -69,7 +69,6 @@ function Dashboard() {
     const min = Math.min(...values);
     const max = Math.max(...values);
     
-    // Add some padding to prevent lines from touching the edges
     const padding = (max - min) * 0.1 || 10;
 
     return [Math.floor(min - padding), Math.ceil(max + padding)];
@@ -79,105 +78,141 @@ function Dashboard() {
   const selectedStock = selectedStockData?.stock;
   const currentChartData = selectedStockData?.chartData || [];
   const currentOpinion = selectedStockData?.opinion;
-  const isOpinionLoading = selectedStockData?.opinionLoading;
+  const isOpinionLoading = selectedTicker ? stockDetails[selectedTicker]?.opinionLoading : false;
   const chartDomain = getChartDomain(currentChartData);
 
-  const handleStockSelection = useCallback(async (ticker: string) => {
-    const upperTicker = ticker.toUpperCase();
-
-    // Prevent re-fetching if data is already fully loaded
-    if (stockDetails[upperTicker]?.opinion) {
-      setSelectedTicker(upperTicker);
-       if (graphCardRef.current) {
-        graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      return;
-    }
-
-    // Set loading states and scroll
-    setIsGraphLoading(true);
-    setSelectedTicker(upperTicker);
+  const fetchOpinionForStock = useCallback(async (ticker: string, name: string) => {
     setStockDetails(prev => ({
         ...prev,
-        [upperTicker]: { ...(prev[upperTicker] || {}), opinionLoading: true }
+        [ticker]: { ...(prev[ticker] as StockDetailsState), opinionLoading: true }
     }));
+
+    try {
+        const { opinion } = await getStockOpinion({ ticker, name });
+        setStockDetails(prev => ({
+            ...prev,
+            [ticker]: { ...prev[ticker], opinion, opinionLoading: false }
+        }));
+    } catch (error) {
+        console.error(`Failed to fetch opinion for ${ticker}:`, error);
+        setStockDetails(prev => ({
+            ...prev,
+            [ticker]: { ...prev[ticker], opinion: "Could not load AI opinion.", opinionLoading: false }
+        }));
+    }
+  }, []);
+  
+  const handleStockSelection = useCallback(async (ticker: string) => {
+    const upperTicker = ticker.toUpperCase();
+    setSelectedTicker(upperTicker);
+
     if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    try {
-      // Step 1: Fetch stock data (price, chart)
-      const dataArray = await getStockData({ tickers: [upperTicker] });
-
-      // Gracefully handle cases where the API returns no data
-      if (!dataArray || dataArray.length === 0) {
-        toast({
-            title: "API Error",
-            description: `Could not load data for ${upperTicker}. The API may be rate-limited. Please try again shortly.`,
-            variant: "destructive",
-        });
-        // Revert UI changes on error
-        setSelectedTicker(prev => prev === upperTicker ? null : prev);
-        setIsGraphLoading(false);
-        setStockDetails(prev => {
-            const newState = { ...prev };
-            delete newState[upperTicker];
-            return newState;
-        });
-        return;
+    // If data exists, just fetch opinion if needed
+    if (stockDetails[upperTicker]) {
+      if (!stockDetails[upperTicker].opinion && !stockDetails[upperTicker].opinionLoading) {
+        fetchOpinionForStock(upperTicker, stockDetails[upperTicker].stock.name);
       }
-      const data = dataArray[0];
+      return;
+    }
 
-      // Update state with graph data, allows graph to render
-      setStockDetails(prev => ({ ...prev, [upperTicker]: { ...data, opinionLoading: true } }));
-      setIsGraphLoading(false);
+    // If data for the stock does not exist, fetch everything
+    setIsGraphLoading(true);
 
-      // Update watchlist
-      setWatchlist(prev => {
-        const stockExists = prev.some(s => s.ticker === upperTicker);
-        const newStock = { ...data.stock };
-        if (!stockExists) {
-          return [newStock, ...prev].slice(0, 10);
+    try {
+        const dataArray = await getStockData({ tickers: [upperTicker] });
+
+        if (!dataArray || dataArray.length === 0) {
+          toast({
+              title: "Data Not Found",
+              description: `Could not load data for ${upperTicker}. Please check the ticker.`,
+              variant: "destructive",
+          });
+          setIsGraphLoading(false);
+          return;
         }
-        return prev.map(s => s.ticker === upperTicker ? newStock : s);
-      });
-      
-      // Step 2: Fetch opinion
-      const { opinion } = await getStockOpinion({ ticker: data.stock.ticker, name: data.stock.name });
-      setStockDetails(prev => ({ ...prev, [upperTicker]: { ...data, opinion, opinionLoading: false } }));
+        const data = dataArray[0];
+
+        setStockDetails(prev => ({ ...prev, [upperTicker]: { ...data, opinionLoading: true } }));
+        setWatchlist(prev => {
+            const stockExists = prev.some(s => s.ticker === upperTicker);
+            return !stockExists ? [data.stock, ...prev] : prev.map(s => s.ticker === upperTicker ? data.stock : s);
+        });
+
+        fetchOpinionForStock(upperTicker, data.stock.name);
 
     } catch (error) {
-        console.error("Failed to load stock details:", error);
+        console.error(`Failed to load stock details for ${upperTicker}:`, error);
         toast({
             title: "API Error",
             description: `An unexpected error occurred while loading data for ${upperTicker}.`,
             variant: "destructive",
         });
-        // Revert UI changes on error
-        setSelectedTicker(prev => prev === upperTicker ? null : prev);
+    } finally {
         setIsGraphLoading(false);
-        setStockDetails(prev => {
-            const newState = { ...prev };
-            delete newState[upperTicker];
-            return newState;
-        });
     }
-  }, [stockDetails, toast]);
+  }, [stockDetails, toast, fetchOpinionForStock]);
 
+  // Effect for initial data load
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setIsGraphLoading(true);
+      try {
+        const initialTickers = initialWatchlist.map(s => s.ticker);
+        const allStockData = await getStockData({ tickers: initialTickers });
 
-  // Effect to handle initial load and subsequent searches
+        if (!allStockData || allStockData.length === 0) {
+          toast({
+            title: "API Error",
+            description: "Could not load watchlist data. The API may be busy. Please refresh.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const newDetails: Record<string, StockDetailsState> = {};
+        allStockData.forEach(data => {
+          newDetails[data.stock.ticker] = { ...data, opinionLoading: false };
+        });
+
+        const updatedWatchlist = allStockData.map(data => data.stock);
+        setWatchlist(updatedWatchlist);
+        setStockDetails(newDetails);
+
+        const searchTicker = searchParams.get('ticker')?.toUpperCase();
+        const tickerToSelect = searchTicker && newDetails[searchTicker] ? searchTicker : (allStockData[0]?.stock.ticker || null);
+        
+        if (tickerToSelect) {
+            setSelectedTicker(tickerToSelect);
+            if (!newDetails[tickerToSelect].opinion) {
+                fetchOpinionForStock(tickerToSelect, newDetails[tickerToSelect].stock.name);
+            }
+        }
+
+      } catch (error) {
+        console.error("Failed to load initial stock data:", error);
+        toast({
+          title: "API Error",
+          description: "An unexpected error occurred while loading watchlist.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGraphLoading(false);
+        setInitialLoadComplete(true);
+      }
+    };
+
+    if (!initialLoadComplete) {
+      loadInitialData();
+    }
+  }, [initialLoadComplete, toast, fetchOpinionForStock, searchParams]);
+  
+  // Effect to handle subsequent searches from the URL
   useEffect(() => {
     const searchTicker = searchParams.get('ticker')?.toUpperCase();
-
-    // On initial load, fetch data for the first stock or from search param
-    if (!initialLoadComplete) {
-      const tickerToLoad = searchTicker || (initialWatchlist.length > 0 ? initialWatchlist[0].ticker : null);
-      if (tickerToLoad) {
-        handleStockSelection(tickerToLoad);
-      }
-      setInitialLoadComplete(true);
-    } else if (searchTicker && searchTicker !== selectedTicker) {
-      // Handle subsequent searches
+    if (searchTicker && initialLoadComplete && searchTicker !== selectedTicker) {
       handleStockSelection(searchTicker);
     }
   }, [searchParams, initialLoadComplete, selectedTicker, handleStockSelection]);
