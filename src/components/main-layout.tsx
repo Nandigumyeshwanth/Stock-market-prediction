@@ -66,24 +66,20 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/" legacyBehavior passHref>
-                <SidebarMenuButton
-                  isActive={isActive("/")}
-                  icon={<LayoutDashboard />}
-                >
-                  Dashboard
-                </SidebarMenuButton>
-              </Link>
+              <SidebarMenuButton asChild isActive={isActive("/")}>
+                <Link href="/">
+                  <LayoutDashboard />
+                  <span>Dashboard</span>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/portfolio" legacyBehavior passHref>
-                <SidebarMenuButton
-                  isActive={isActive("/portfolio")}
-                  icon={<Briefcase />}
-                >
-                  Portfolio
-                </SidebarMenuButton>
-              </Link>
+              <SidebarMenuButton asChild isActive={isActive("/portfolio")}>
+                <Link href="/portfolio">
+                  <Briefcase />
+                  <span>Portfolio</span>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
