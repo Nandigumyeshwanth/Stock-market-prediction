@@ -1,8 +1,8 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for fetching and predicting stock data.
+ * @fileOverview A Genkit flow for fetching and predicting stock data for multiple tickers.
  *
- * - getStockData - A function that returns realistic current and historical data for a stock.
+ * - getStockData - A function that returns realistic current and historical data for a list of stocks.
  * - StockDataInput - The input type for the getStockData function.
  * - StockDataOutput - The return type for the getStockData function.
  */
@@ -24,28 +24,34 @@ const ChartDataSchema = z.object({
   prediction: z.number().optional().describe('The predicted price for that month. Should be present for all months.'),
 });
 
-const StockDataInputSchema = z.object({
-  ticker: z.string().describe('The stock ticker symbol to get data for.'),
-});
-export type StockDataInput = z.infer<typeof StockDataInputSchema>;
-
-const StockDataOutputSchema = z.object({
+const SingleStockDataSchema = z.object({
   stock: StockSchema,
   chartData: z.array(ChartDataSchema).describe('An array of 10 data points for the last 6 months and a 4-month prediction.'),
 });
+
+// Input is now an array of tickers
+const StockDataInputSchema = z.object({
+  tickers: z.array(z.string()).describe('The list of stock ticker symbols to get data for.'),
+});
+export type StockDataInput = z.infer<typeof StockDataInputSchema>;
+
+// Output is now an array of stock data
+const StockDataOutputSchema = z.array(SingleStockDataSchema);
 export type StockDataOutput = z.infer<typeof StockDataOutputSchema>;
 
+// The exported function signature changes
 export async function getStockData(input: StockDataInput): Promise<StockDataOutput> {
   return stockDataFlow(input);
 }
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a stock ticker. You MUST return a valid JSON object matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
+  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a list of stock tickers. For EACH ticker, you MUST generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
-  prompt: `Generate data for the ticker: {{{ticker}}}.
+  prompt: `Generate data for the following tickers: {{#each tickers}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}.
 
+For each ticker, ensure the generated data follows these rules:
 - The chartData must contain exactly 10 sequential monthly data points.
 - The first 6 are historical and need a 'price'.
 - The next 4 are predictions and must NOT have a 'price'.
@@ -67,23 +73,35 @@ const stockDataFlow = ai.defineFlow(
     if (!output) {
       throw new Error('AI model failed to generate valid stock data.');
     }
-    
-    // Find the last data point that has a historical price.
-    const lastHistoricalDataIndex = output.chartData.findLastIndex(d => d.price !== undefined && d.price !== null);
 
-    if (lastHistoricalDataIndex !== -1) {
-      const lastHistoricalPoint = output.chartData[lastHistoricalDataIndex];
-      
-      if (lastHistoricalPoint.price) {
-        // RULE 1: The current stock price must match the last known historical price.
-        output.stock.price = lastHistoricalPoint.price;
+    // Apply the supervisor logic to each item in the array
+    const supervisedOutput = output.map(data => {
+      // Find the last data point that has a historical price.
+      const lastHistoricalDataIndex = data.chartData.findLastIndex(d => d.price !== undefined && d.price !== null);
+
+      if (lastHistoricalDataIndex !== -1) {
+        const lastHistoricalPoint = data.chartData[lastHistoricalDataIndex];
         
-        // RULE 2: The prediction line should be continuous with the price line.
-        // Set the prediction value of the last historical point to be the same as its price.
-        lastHistoricalPoint.prediction = lastHistoricalPoint.price;
+        if (lastHistoricalPoint.price) {
+          // RULE 1: The current stock price must match the last known historical price.
+          data.stock.price = lastHistoricalPoint.price;
+          
+          // RULE 2: The prediction line should be continuous with the price line.
+          // Set the prediction value of the last historical point to be the same as its price.
+          lastHistoricalPoint.prediction = lastHistoricalPoint.price;
+        }
       }
+      return data;
+    });
+    
+    // Ensure data is returned for all requested tickers. If not, the model failed silently.
+    if (supervisedOutput.length !== input.tickers.length) {
+      console.error("The AI model did not return data for all requested tickers.");
+      // We could try to be smart here and return partial data, but throwing an error is safer
+      // to indicate a problem with the generation.
+      throw new Error('AI model failed to generate data for all tickers.');
     }
 
-    return output;
+    return supervisedOutput;
   }
 );

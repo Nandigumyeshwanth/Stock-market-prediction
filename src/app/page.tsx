@@ -88,7 +88,13 @@ function Dashboard() {
     }
     
     try {
-      const data = await getStockData({ ticker: upperTicker });
+      const dataArray = await getStockData({ tickers: [upperTicker] });
+
+      if (!dataArray || dataArray.length === 0) {
+        throw new Error(`No data returned for ${upperTicker}`);
+      }
+      const data = dataArray[0];
+
       setSelectedStock(data.stock);
       setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
       setWatchlist(prev => {
@@ -106,7 +112,6 @@ function Dashboard() {
         description: `Could not find data for the stock: ${upperTicker}. Please try again.`,
         variant: "destructive",
       });
-      // Don't clear selected stock on error, keep the old one visible.
     } finally {
       setIsGraphLoading(false);
     }
@@ -121,38 +126,42 @@ function Dashboard() {
         setIsGraphLoading(true);
 
         const loadInitialData = async () => {
-            // 1. Determine which stock to show first (from URL or default)
-            const stockToLoadFirst = initialWatchlist.find(s => s.ticker === ticker) || initialWatchlist[0];
-
-            // 2. Fetch and display the primary stock
-            try {
-                const data = await getStockData({ ticker: stockToLoadFirst.ticker });
-                
-                setSelectedStock(data.stock);
-                setStockChartData({ [data.stock.ticker]: data.chartData });
-                setWatchlist(prev => prev.map(s => s.ticker === data.stock.ticker ? data.stock : s));
-                
-                fetchOpinion(data.stock);
-                setIsGraphLoading(false);
-            } catch (error) {
-                console.error("Failed to load initial stock:", error);
-                toast({ title: "Error", description: "Could not load initial stock data.", variant: "destructive" });
-                setIsGraphLoading(false);
-            }
-
-            // 3. Fetch the rest of the watchlist sequentially in the background to avoid rate limiting.
-            const otherStocks = initialWatchlist.filter(s => s.ticker !== stockToLoadFirst.ticker);
+            const firstTicker = ticker || initialWatchlist[0].ticker;
+            const allTickers = initialWatchlist.map(s => s.ticker);
             
-            for (const stock of otherStocks) {
-                try {
-                    const data = await getStockData({ ticker: stock.ticker });
-                    // Use functional updates for state setters inside a loop
-                    setWatchlist(prev => prev.map(s => s.ticker === data.stock.ticker ? data.stock : s));
-                    setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
-                } catch (err) {
-                    // Log errors for background fetches but don't show a toast for each one.
-                    console.error(`Failed to load background data for ${stock.ticker}`, err);
+            try {
+                const allStockData = await getStockData({ tickers: allTickers });
+
+                const dataMap = new Map(allStockData.map(d => [d.stock.ticker, d]));
+                
+                const newWatchlist: Stock[] = initialWatchlist.map(s => {
+                    const data = dataMap.get(s.ticker);
+                    return data ? data.stock : s;
+                });
+                setWatchlist(newWatchlist);
+                
+                const newChartData: Record<string, ChartData[]> = {};
+                allStockData.forEach(d => {
+                    newChartData[d.stock.ticker] = d.chartData;
+                });
+                setStockChartData(newChartData);
+
+                const firstStockData = dataMap.get(firstTicker);
+                if (firstStockData) {
+                    setSelectedStock(firstStockData.stock);
+                    fetchOpinion(firstStockData.stock);
+                } else {
+                    console.error(`Could not find data for primary ticker ${firstTicker} in batch response.`);
+                    if (allStockData.length > 0) {
+                        setSelectedStock(allStockData[0].stock);
+                        fetchOpinion(allStockData[0].stock);
+                    }
                 }
+            } catch (error) {
+                console.error("Failed to load initial watchlist data:", error);
+                toast({ title: "Error", description: "Could not load initial stock data.", variant: "destructive" });
+            } finally {
+                 setIsGraphLoading(false);
             }
         };
 
