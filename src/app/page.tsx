@@ -104,10 +104,9 @@ function Dashboard() {
       console.error("Failed to get stock data:", error);
       toast({
         title: "Error",
-        description: `Could not find data for the stock: ${upperTicker}.`,
+        description: `Could not find data for the stock: ${upperTicker}. Please try again.`,
         variant: "destructive",
       });
-      setSelectedStock(null);
     } finally {
       setIsGraphLoading(false);
     }

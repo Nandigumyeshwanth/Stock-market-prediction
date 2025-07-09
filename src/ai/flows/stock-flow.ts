@@ -41,22 +41,17 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate realistic but fictional stock data for the Indian stock market (NSE/BSE).
-You will be given a stock ticker. You MUST return a valid JSON object matching the output schema. Do not add any commentary.
-Generate prices that are realistic for the Indian market, typically ranging from ₹100 to ₹5000 for established companies.
-The data must be consistent. The 'price' in the main 'stock' object must be the same as the last 'price' in the 'chartData' array.
-The 'prediction' values should form a smooth continuation from the historical 'price' values.`,
+  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a stock ticker. You MUST return a valid JSON object matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
-  prompt: `
-    Generate data for the ticker: {{{ticker}}}.
+  prompt: `Generate data for the ticker: {{{ticker}}}.
 
-    Follow these rules for the chart data:
-    - Create exactly 10 data points.
-    - The first 6 points are historical. They MUST have both a 'price' and a 'prediction' value.
-    - The last 4 points are future predictions. They MUST have a 'prediction' value, but the 'price' value should be omitted.
-    - The 'date' should be a three-letter month abbreviation. Start with a month from 6 months ago and continue sequentially.
-  `,
+- The chartData must contain exactly 10 sequential monthly data points.
+- The first 6 are historical and need a 'price'.
+- The next 4 are predictions and must NOT have a 'price'.
+- All 10 points need a 'prediction'.
+- The company name must be realistic for the given ticker (e.g., 'RELIANCE' -> 'Reliance Industries').
+- Prices should be realistic for the Indian stock market (e.g., ₹100-₹5000).`,
 });
 
 
