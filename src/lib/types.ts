@@ -1,3 +1,4 @@
+
 export type Stock = {
   ticker: string;
   name: string;
@@ -16,7 +17,7 @@ export type Holding = {
 
 export type ChartData = {
   date: string;
-  price: number;
+  price?: number;
   prediction?: number;
 };
 

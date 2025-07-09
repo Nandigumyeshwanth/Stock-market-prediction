@@ -1,7 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import React from "react";
 import {
   Bell,
   Briefcase,
@@ -53,8 +55,18 @@ const Logo = () => (
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = React.useState("");
 
   const isActive = (path: string) => pathname === path;
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      router.push(`/?ticker=${searchTerm.trim().toUpperCase()}`);
+      setSearchTerm("");
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -87,13 +99,15 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <header className="flex h-16 shrink-0 items-center justify-between border-b px-6">
           <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden" />
-            <div className="relative hidden md:block">
+            <form onSubmit={handleSearch} className="relative hidden md:block">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search stocks..."
                 className="w-full rounded-lg bg-muted pl-8 md:w-[200px] lg:w-[336px]"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </div>
+            </form>
           </div>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" className="rounded-full">
