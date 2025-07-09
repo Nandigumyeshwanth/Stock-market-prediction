@@ -57,7 +57,7 @@ function Dashboard() {
   const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
 
-    // If data is already loaded, just set the selected stock
+    // If data is already loaded, just set the selected stock and scroll
     if (stockDetails[upperTicker]) {
       setSelectedTicker(upperTicker);
       if (graphCardRef.current) {
@@ -70,7 +70,7 @@ function Dashboard() {
     setIsGraphLoading(true);
     setSelectedTicker(upperTicker); // Select it immediately to show loading state
     if (graphCardRef.current) {
-      graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     
     try {
@@ -83,12 +83,14 @@ function Dashboard() {
           variant: "destructive",
         });
         // Revert selection if the fetch fails
-        setSelectedTicker(prev => prev === upperTicker ? (watchlist.length > 0 ? watchlist[0].ticker : null) : prev);
+        setSelectedTicker(prev => prev === upperTicker ? (Object.keys(stockDetails).length > 0 ? Object.keys(stockDetails)[0] : null) : prev);
         return;
       }
       const data = dataArray[0];
 
-      setStockDetails(prev => ({ ...prev, [data.stock.ticker]: data }));
+      setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
+      
+      // Use functional update to avoid depending on `watchlist` in useCallback
       setWatchlist(prev => {
         const stockExists = prev.some(s => s.ticker === upperTicker);
         if (!stockExists) {
@@ -96,19 +98,20 @@ function Dashboard() {
         }
         return prev.map(s => s.ticker === upperTicker ? data.stock : s);
       });
+
     } catch (error) {
       console.error("Failed to get stock data:", error);
       toast({
         title: "Error",
-        description: `Could not find data for the stock: ${upperTicker}. Please try again.`,
+        description: `An error occurred while fetching data for ${upperTicker}. Please try again.`,
         variant: "destructive",
       });
       // Revert selection if the fetch fails
-      setSelectedTicker(prev => prev === upperTicker ? (watchlist.length > 0 ? watchlist[0].ticker : null) : prev);
+      setSelectedTicker(prev => prev === upperTicker ? (Object.keys(stockDetails).length > 0 ? Object.keys(stockDetails)[0] : null) : prev);
     } finally {
       setIsGraphLoading(false);
     }
-  }, [stockDetails, toast, watchlist]);
+  }, [stockDetails, toast]);
 
 
   // Effect to handle initial load and subsequent searches
@@ -116,53 +119,55 @@ function Dashboard() {
     const searchTicker = searchParams.get('ticker')?.toUpperCase();
 
     if (!initialLoadComplete) {
+      const loadInitialData = async () => {
         setIsGraphLoading(true);
+        // Load the first stock from the URL if present, otherwise the first in the list.
+        const tickerToLoad = searchTicker || (initialWatchlist.length > 0 ? initialWatchlist[0].ticker : null);
 
-        const loadInitialData = async () => {
-            const firstTicker = searchTicker || initialWatchlist[0].ticker;
-            const allTickers = initialWatchlist.map(s => s.ticker);
-            
-            try {
-                const allStockData = await getStockData({ tickers: allTickers });
-                
-                if (!allStockData || allStockData.length === 0) {
-                  toast({ title: "Error", description: "Could not load initial stock data. This may be due to API rate limits.", variant: "destructive" });
-                  return;
-                }
+        if (!tickerToLoad) {
+          setIsGraphLoading(false);
+          setInitialLoadComplete(true);
+          return;
+        }
 
-                const newDetails: Record<string, StockDataOutput[0]> = {};
-                allStockData.forEach(d => {
-                    newDetails[d.stock.ticker] = d;
-                });
-                setStockDetails(newDetails);
-                
-                const newWatchlist: Stock[] = initialWatchlist.map(s => {
-                    const data = newDetails[s.ticker];
-                    return data ? data.stock : s;
-                }).filter(Boolean);
-                setWatchlist(newWatchlist);
-                
-                if (newDetails[firstTicker]) {
-                    setSelectedTicker(firstTicker);
-                } else if (allStockData.length > 0) {
-                    setSelectedTicker(allStockData[0].stock.ticker);
-                }
+        setSelectedTicker(tickerToLoad); // Set selection to show loading state
 
-            } catch (error) {
-                console.error("Failed to load initial watchlist data:", error);
-                toast({ title: "Error", description: "Could not load initial stock data. This may be due to API rate limits.", variant: "destructive" });
-            } finally {
-                 setIsGraphLoading(false);
-                 setInitialLoadComplete(true);
-            }
-        };
+        try {
+          const dataArray = await getStockData({ tickers: [tickerToLoad] });
 
-        loadInitialData();
+          if (!dataArray || dataArray.length === 0) {
+            toast({
+              title: "API Error",
+              description: `Could not load initial data for ${tickerToLoad}. The service may be unavailable.`,
+              variant: "destructive",
+            });
+            // Don't throw an error, just finish loading.
+          } else {
+            const data = dataArray[0];
+            // Update state with the single fetched stock
+            setStockDetails({ [data.stock.ticker]: data });
+            setWatchlist(prev => prev.map(s => s.ticker === data.stock.ticker ? data.stock : s));
+          }
+        } catch (error) {
+          console.error("Failed to load initial stock data:", error);
+           toast({
+              title: "API Error",
+              description: "Could not load initial stock data. The service may be rate-limited.",
+              variant: "destructive",
+            });
+        } finally {
+          setIsGraphLoading(false);
+          setInitialLoadComplete(true);
+        }
+      };
+
+      loadInitialData();
 
     } else if (searchTicker && searchTicker !== selectedTicker) {
-        handleStockSelection(searchTicker);
+      // Handle subsequent searches after initial load is complete
+      handleStockSelection(searchTicker);
     }
-  }, [searchParams, handleStockSelection, selectedTicker, initialLoadComplete, toast]);
+  }, [searchParams, initialLoadComplete, selectedTicker, handleStockSelection, toast]);
 
   return (
     <MainLayout>
