@@ -87,8 +87,23 @@ function Dashboard() {
     try {
       // Step 1: Fetch stock data (price, chart)
       const dataArray = await getStockData({ tickers: [upperTicker] });
+
+      // Gracefully handle cases where the API returns no data
       if (!dataArray || dataArray.length === 0) {
-        throw new Error(`Stock data not found for ${upperTicker}`);
+        toast({
+            title: "API Error",
+            description: `Could not load data for ${upperTicker}. Please try again.`,
+            variant: "destructive",
+        });
+        // Revert UI changes on error
+        setSelectedTicker(prev => prev === upperTicker ? null : prev);
+        setIsGraphLoading(false);
+        setStockDetails(prev => {
+            const newState = { ...prev };
+            delete newState[upperTicker];
+            return newState;
+        });
+        return;
       }
       const data = dataArray[0];
 
@@ -113,7 +128,7 @@ function Dashboard() {
         console.error("Failed to load stock details:", error);
         toast({
             title: "API Error",
-            description: `Could not load data for ${upperTicker}. Please try again.`,
+            description: `An unexpected error occurred while loading data for ${upperTicker}.`,
             variant: "destructive",
         });
         // Revert UI changes on error
