@@ -1,6 +1,6 @@
 
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -153,6 +153,7 @@ function Dashboard() {
   const [watchlist, setWatchlist] = useState<Stock[]>(initialWatchlist);
   const [stockChartData, setStockChartData] = useState<Record<string, ChartData[]>>(initialStockChartData);
   const [selectedStock, setSelectedStock] = useState<Stock>(watchlist[0]);
+  const graphCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ticker = searchParams.get('ticker');
@@ -168,6 +169,7 @@ function Dashboard() {
         setStockChartData(prev => ({ ...prev, [ticker]: newChartData }));
         setSelectedStock(newStock);
       }
+      graphCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       setSelectedStock(watchlist[0]);
     }
@@ -204,7 +206,7 @@ function Dashboard() {
           ))}
         </div>
 
-        <Card>
+        <Card ref={graphCardRef}>
           <CardHeader>
             <CardTitle>{selectedStock.ticker} - {selectedStock.name} Performance</CardTitle>
           </CardHeader>
