@@ -41,8 +41,9 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate realistic but fictional stock data.
+  system: `You are a financial data API. You generate realistic but fictional stock data for the Indian stock market (NSE/BSE).
 You will be given a stock ticker. You MUST return a valid JSON object matching the output schema. Do not add any commentary.
+Generate prices that are realistic for the Indian market, typically ranging from ₹100 to ₹5000 for established companies.
 The data must be consistent. The 'price' in the main 'stock' object must be the same as the last 'price' in the 'chartData' array.
 The 'prediction' values should form a smooth continuation from the historical 'price' values.`,
   input: { schema: StockDataInputSchema },
