@@ -41,22 +41,22 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
+  system: "You are a helpful financial data API. You will be given a stock ticker and you must return a valid JSON object that conforms to the provided output schema. The data you generate should be realistic but can be fictional.",
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
   prompt: `
-    You are a financial data analyst AI. Your task is to generate realistic, but fictional, stock market data for a given ticker symbol.
+    Generate realistic, fictional stock market data for the given ticker symbol.
 
     Ticker: {{{ticker}}}
 
-    Generate the following information:
-    1.  **Stock Details**: A full company name, a realistic current price, and the daily change (both absolute and percentage). The price should be appropriate for a major company.
-    2.  **Chart Data**: An array of 10 data points.
+    Provide the following:
+    1.  **Stock Details**: Full company name, a realistic current price, daily change (absolute and percentage).
+    2.  **Chart Data**: An array of exactly 10 data points for a chart.
         - The data should represent the last 6 months of historical data and a 4-month future prediction.
-        - Use month abbreviations for the date (Jan, Feb, Mar, etc.).
-        - For the first 6 months, 'price' and 'prediction' values should be the same.
-        - For the last 4 months, only the 'prediction' value should be present.
-        - The final historical price (6th month) must match the current price from the stock details.
-        - The predictions should follow a believable trend based on the historical data. Create a smooth and realistic price curve.
+        - Use three-letter month abbreviations for the 'date' field.
+        - For the first 6 data points (historical), provide values for both 'price' and 'prediction'.
+        - For the last 4 data points (future), provide a value only for 'prediction'.
+        - The data should follow a believable trend.
   `,
 });
 
