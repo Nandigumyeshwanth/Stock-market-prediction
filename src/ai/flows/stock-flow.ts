@@ -71,7 +71,10 @@ const stockDataFlow = ai.defineFlow(
     const { output } = await prompt(input);
 
     if (!output) {
-      throw new Error('AI model failed to generate valid stock data.');
+      // If the model returns no output at all, we can't proceed.
+      // Return an empty array so the frontend can handle it gracefully.
+      console.error('AI model failed to generate any stock data.');
+      return [];
     }
 
     // Apply the supervisor logic to each item in the array
@@ -94,12 +97,10 @@ const stockDataFlow = ai.defineFlow(
       return data;
     });
     
-    // Ensure data is returned for all requested tickers. If not, the model failed silently.
+    // Warn if the data is incomplete, but don't throw an error.
+    // This makes the app more resilient to AI flakiness.
     if (supervisedOutput.length !== input.tickers.length) {
-      console.error("The AI model did not return data for all requested tickers.");
-      // We could try to be smart here and return partial data, but throwing an error is safer
-      // to indicate a problem with the generation.
-      throw new Error('AI model failed to generate data for all tickers.');
+      console.warn("The AI model did not return data for all requested tickers. Returning partial data.");
     }
 
     return supervisedOutput;
