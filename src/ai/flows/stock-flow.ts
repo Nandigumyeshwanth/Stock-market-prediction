@@ -49,19 +49,20 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate fictional stock data using random numbers. You will be given a list of stock tickers. For EACH ticker, you must generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The prices should be generated randomly but within a realistic range. Do not add any commentary outside of the JSON object. If you do not recognize a ticker, you must still generate data for it. Create a plausible full company name that could correspond to the ticker and proceed with generating all other required data fields. It is critical that you return an entry for every ticker provided in the input.`,
+  system: `You are a financial data API. You generate fictional stock data using random numbers. Your output MUST be a valid JSON array matching the output schema. Do not add any commentary outside of the JSON object.
+
+For EACH ticker provided in the input, you must generate a corresponding entry in the output array with the following rules:
+- Generate a plausible full company name for the ticker. If you do not recognize the ticker, invent a plausible name.
+- The stock's 'price', 'change', and 'changePercent' should be random numbers. The 'price' should be between 100 and 8000.
+- The chartData array must contain exactly 10 sequential monthly data points (e.g., 'Jan', 'Feb', ...).
+- For the first 6 historical points, the 'price' property must be a random number between 100 and 8000.
+- For the last 4 prediction points, the 'price' property must be absent.
+- For all 10 points, the 'prediction' property must be a random number between 100 and 8000.
+- The data does NOT need to be realistic or continuous. It should be random as requested.
+- It is critical that you return an entry for every ticker provided in the input.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
-  prompt: `Generate data for the following tickers: {{#each tickers}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}.
-
-For each ticker, ensure the generated data follows these rules:
-- The chartData must contain exactly 10 sequential monthly data points.
-- The first 6 are historical and need a 'price'.
-- The next 4 are predictions and must NOT have a 'price'.
-- All 10 points need a 'prediction'.
-- The company name must be realistic for the given ticker (e.g., 'RELIANCE' -> 'Reliance Industries'). If you do not recognize the ticker, invent a plausible company name.
-- Prices should be random but plausible for the Indian stock market (e.g., ₹100-₹5000).
-- The historical and prediction prices in chartData should be random numbers. The data does not need to look like a real stock chart and can have large fluctuations.`,
+  prompt: `Generate random stock data for the following tickers: {{#each tickers}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}.`,
 });
 
 
@@ -76,39 +77,17 @@ const stockDataFlow = ai.defineFlow(
       const { output } = await prompt(input);
 
       if (!output) {
-        // If the model returns no output at all, we can't proceed.
-        // Return an empty array so the frontend can handle it gracefully.
         console.error('AI model failed to generate any stock data.');
         return [];
       }
-
-      // Apply the supervisor logic to each item in the array
-      const supervisedOutput = output.map(data => {
-        // Find the last data point that has a historical price.
-        const lastHistoricalDataIndex = data.chartData.findLastIndex(d => d.price !== undefined && d.price !== null);
-
-        if (lastHistoricalDataIndex !== -1) {
-          const lastHistoricalPoint = data.chartData[lastHistoricalDataIndex];
-          
-          if (lastHistoricalPoint.price) {
-            // RULE 1: The current stock price must match the last known historical price.
-            data.stock.price = lastHistoricalPoint.price;
-            
-            // RULE 2: The prediction line should be continuous with the price line.
-            // Set the prediction value of the last historical point to be the same as its price.
-            lastHistoricalPoint.prediction = lastHistoricalPoint.price;
-          }
-        }
-        return data;
-      });
       
       // Warn if the data is incomplete, but don't throw an error.
-      // This makes the app more resilient to AI flakiness.
-      if (supervisedOutput.length !== input.tickers.length) {
+      if (output.length !== input.tickers.length) {
         console.warn("The AI model did not return data for all requested tickers. Returning partial data.");
       }
 
-      return supervisedOutput;
+      // Return the raw output directly, without supervisor logic.
+      return output;
     } catch (error: any) {
       // Log the actual error for debugging, but don't let it crash the app.
       console.error("An error occurred in the stockDataFlow:", error.message || error);
