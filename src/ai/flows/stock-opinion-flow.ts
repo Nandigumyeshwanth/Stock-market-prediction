@@ -49,10 +49,18 @@ const stockOpinionFlow = ai.defineFlow(
     outputSchema: StockOpinionOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) {
-      throw new Error('AI model failed to generate a stock opinion.');
+    try {
+      const { output } = await prompt(input);
+      if (!output) {
+        throw new Error('AI model failed to generate a stock opinion.');
+      }
+      return output;
+    } catch (error: any) {
+      console.error("An error occurred in the stockOpinionFlow:", error.message || error);
+      // Return a default opinion on error to prevent crashing the frontend.
+      return {
+        opinion: "Disclaimer: This is an AI-generated analysis and not financial advice. The AI opinion is currently unavailable due to a technical issue. Please try again later."
+      };
     }
-    return output;
   }
 );

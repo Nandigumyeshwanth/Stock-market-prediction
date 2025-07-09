@@ -49,7 +49,7 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a list of stock tickers. For EACH ticker, you MUST generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
+  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a list of stock tickers. For EACH ticker, you must generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
   prompt: `Generate data for the following tickers: {{#each tickers}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}.
