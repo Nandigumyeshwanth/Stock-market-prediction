@@ -30,9 +30,9 @@ import { useToast } from "@/hooks/use-toast";
 
 
 const initialHoldings: Holding[] = [
-  { ticker: "AAPL", name: "Apple Inc.", shares: 50, avgCost: 150.00, currentPrice: 194.82 },
-  { ticker: "GOOGL", name: "Alphabet Inc.", shares: 20, avgCost: 135.50, currentPrice: 177.07 },
-  { ticker: "MSFT", name: "Microsoft Corp.", shares: 30, avgCost: 300.25, currentPrice: 423.85 },
+  { ticker: "RELIANCE", name: "Reliance Industries Ltd.", shares: 20, avgCost: 2800.00, currentPrice: 2960.55 },
+  { ticker: "ADANIENT", name: "Adani Enterprises Ltd.", shares: 15, avgCost: 3250.00, currentPrice: 3185.00 },
+  { ticker: "TCS", name: "Tata Consultancy Services", shares: 30, avgCost: 3750.75, currentPrice: 3820.75 },
 ];
 
 const PortfolioPage = () => {
@@ -106,7 +106,7 @@ const PortfolioPage = () => {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="ticker" className="text-right">Ticker</Label>
-                    <Input id="ticker" placeholder="e.g., AAPL" className="col-span-3" value={newStock.ticker} onChange={handleInputChange} />
+                    <Input id="ticker" placeholder="e.g., RELIANCE" className="col-span-3" value={newStock.ticker} onChange={handleInputChange} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="shares" className="text-right">Shares</Label>
@@ -114,7 +114,7 @@ const PortfolioPage = () => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="price" className="text-right">Purchase Price</Label>
-                    <Input id="price" type="number" placeholder="e.g., 150.00" className="col-span-3" value={newStock.price} onChange={handleInputChange}/>
+                    <Input id="price" type="number" placeholder="e.g., 2900.00" className="col-span-3" value={newStock.price} onChange={handleInputChange}/>
                   </div>
                 </div>
                 <DialogFooter>
@@ -131,7 +131,7 @@ const PortfolioPage = () => {
               <CardTitle className="text-sm font-medium">Portfolio Value</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-3xl font-bold">₹{totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </CardContent>
           </Card>
           <Card>
@@ -140,7 +140,7 @@ const PortfolioPage = () => {
             </CardHeader>
             <CardContent>
               <div className={cn("text-3xl font-bold", dayGainLoss >= 0 ? "text-green-500" : "text-red-500")}>
-                ${dayGainLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ₹{dayGainLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <p className={cn("text-xs", dayGainLoss >= 0 ? "text-green-500" : "text-red-500")}>
                 {dayGainLoss >= 0 ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />}
@@ -154,7 +154,7 @@ const PortfolioPage = () => {
             </CardHeader>
             <CardContent>
               <div className={cn("text-3xl font-bold", totalGainLoss >= 0 ? "text-green-500" : "text-red-500")}>
-                ${totalGainLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ₹{totalGainLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <p className={cn("text-xs", totalGainLoss >= 0 ? "text-green-500" : "text-red-500")}>
                 {totalGainLoss >= 0 ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />}
@@ -195,11 +195,11 @@ const PortfolioPage = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">{h.shares}</TableCell>
-                      <TableCell className="text-right">${h.avgCost.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">${h.currentPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">${totalValue.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">₹{h.avgCost.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">₹{h.currentPrice.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">₹{totalValue.toFixed(2)}</TableCell>
                       <TableCell className={cn("text-right", gainLoss >= 0 ? "text-green-500" : "text-red-500")}>
-                        <div className="font-medium">${gainLoss.toFixed(2)}</div>
+                        <div className="font-medium">₹{gainLoss.toFixed(2)}</div>
                         <div className="text-xs">({gainLossPercent.toFixed(2)}%)</div>
                       </TableCell>
                     </TableRow>

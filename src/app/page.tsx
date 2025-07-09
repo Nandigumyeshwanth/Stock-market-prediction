@@ -23,25 +23,25 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const indices: Index[] = [
-  { name: "Dow Jones", value: "38,852.27", change: "+141.24", changePercent: 0.36 },
-  { name: "S&P 500", value: "5,354.03", change: "+4.86", changePercent: 0.09 },
-  { name: "NASDAQ", value: "17,133.13", change: "-15.22", changePercent: -0.09 },
+  { name: "NIFTY 50", value: "23,537.85", change: "+66.70", changePercent: 0.28 },
+  { name: "BSE SENSEX", value: "77,337.59", change: "+131.18", changePercent: 0.17 },
+  { name: "NIFTY BANK", value: "51,703.95", change: "+385.20", changePercent: 0.75 },
 ];
 
 const chartData: ChartData[] = [
-  { date: "Jan", price: 150, prediction: 150 }, { date: "Feb", price: 155, prediction: 155 },
-  { date: "Mar", price: 162, prediction: 162 }, { date: "Apr", price: 158, prediction: 158 },
-  { date: "May", price: 168, prediction: 168 }, { date: "Jun", price: 175, prediction: 175 },
-  { date: "Jul", price: 172, prediction: 178 }, { date: "Aug", price: 180 },
-  { date: "Sep", price: 185 }, { date: "Oct", price: 190 },
+  { date: "Jan", price: 2700, prediction: 2700 }, { date: "Feb", price: 2850, prediction: 2850 },
+  { date: "Mar", price: 2900, prediction: 2900 }, { date: "Apr", price: 2950, prediction: 2950 },
+  { date: "May", price: 3000, prediction: 3000 }, { date: "Jun", price: 2980, prediction: 2980 },
+  { date: "Jul", price: 2950, prediction: 3050 }, { date: "Aug", price: 3100 },
+  { date: "Sep", price: 3150 }, { date: "Oct", price: 3200 },
 ];
 
 const watchlist: Stock[] = [
-  { ticker: "AAPL", name: "Apple Inc.", price: 194.82, change: 1.25, changePercent: 0.65 },
-  { ticker: "GOOGL", name: "Alphabet Inc.", price: 177.07, change: -1.43, changePercent: -0.80 },
-  { ticker: "MSFT", name: "Microsoft Corp.", price: 423.85, change: -1.21, changePercent: -0.28 },
-  { ticker: "AMZN", name: "Amazon.com, Inc.", price: 185.00, change: 2.79, changePercent: 1.53 },
-  { ticker: "TSLA", name: "Tesla, Inc.", price: 177.53, change: 0.25, changePercent: 0.14 },
+  { ticker: "RELIANCE", name: "Reliance Industries Ltd.", price: 2960.55, change: 51.10, changePercent: 1.76 },
+  { ticker: "ADANIENT", name: "Adani Enterprises Ltd.", price: 3185.00, change: -25.50, changePercent: -0.79 },
+  { ticker: "TCS", name: "Tata Consultancy Services", price: 3820.75, change: 15.20, changePercent: 0.40 },
+  { ticker: "HDFCBANK", name: "HDFC Bank Ltd.", price: 1711.25, change: 48.45, changePercent: 2.91 },
+  { ticker: "INFY", name: "Infosys Ltd.", price: 1528.00, change: -5.75, changePercent: -0.37 },
 ];
 
 export default function Home() {
@@ -76,7 +76,7 @@ export default function Home() {
 
         <Card>
           <CardHeader>
-            <CardTitle>AAPL - Apple Inc. Performance</CardTitle>
+            <CardTitle>RELIANCE - Reliance Industries Ltd. Performance</CardTitle>
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -93,7 +93,7 @@ export default function Home() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
                 <XAxis dataKey="date" />
-                <YAxis domain={['dataMin - 10', 'dataMax + 10']} />
+                <YAxis domain={['dataMin - 100', 'dataMax + 100']} tickFormatter={(value) => `₹${value}`} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
@@ -107,7 +107,7 @@ export default function Home() {
                             {payload.map((item, index) => (
                               <div key={index} className="flex flex-col">
                                 <span className="text-[0.70rem] uppercase text-muted-foreground">{item.name}</span>
-                                <span className="font-bold" style={{color: item.color}}>${item.value?.toLocaleString()}</span>
+                                <span className="font-bold" style={{color: item.color}}>₹{item.value?.toLocaleString()}</span>
                               </div>
                             ))}
                           </div>
@@ -146,7 +146,7 @@ export default function Home() {
                       <Badge variant="outline">{stock.ticker}</Badge>
                     </TableCell>
                     <TableCell>{stock.name}</TableCell>
-                    <TableCell className="text-right font-medium">${stock.price.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">₹{stock.price.toFixed(2)}</TableCell>
                     <TableCell
                       className={cn(
                         "text-right",
