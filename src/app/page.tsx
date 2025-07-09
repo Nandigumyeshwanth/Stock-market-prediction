@@ -110,8 +110,6 @@ function Dashboard() {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // If data for the stock exists, we just need to select it
-    // and maybe fetch the opinion if it's missing.
     if (stockDetails[upperTicker]) {
       if (!stockDetails[upperTicker].opinion && !stockDetails[upperTicker].opinionLoading) {
         fetchOpinionForStock(upperTicker, stockDetails[upperTicker].stock.name);
@@ -119,7 +117,6 @@ function Dashboard() {
       return;
     }
     
-    // If data for the stock does not exist (e.g., from a new search), fetch it.
     setIsGraphLoading(true);
 
     try {
@@ -142,7 +139,6 @@ function Dashboard() {
             return !stockExists ? [data.stock, ...prev] : prev.map(s => s.ticker === upperTicker ? data.stock : s);
         });
 
-        // Now fetch the opinion for the newly loaded stock.
         fetchOpinionForStock(upperTicker, data.stock.name);
 
     } catch (error) {
@@ -160,55 +156,63 @@ function Dashboard() {
   // Effect for initial data load of the whole watchlist
   useEffect(() => {
     const loadInitialData = async () => {
-      setIsGraphLoading(true);
-      try {
-        const initialTickers = initialWatchlist.map(s => s.ticker);
-        const allStockData = await getStockData({ tickers: initialTickers });
+      // Use Promise.allSettled to fetch all data in parallel without one failure stopping others.
+      const tickerPromises = initialWatchlist.map(stock => 
+        // Requesting data for one ticker at a time is more reliable
+        getStockData({ tickers: [stock.ticker] })
+      );
+      
+      const results = await Promise.allSettled(tickerPromises);
 
-        if (!allStockData || allStockData.length === 0) {
-          toast({
-            title: "API Error",
-            description: "Could not load initial watchlist data. Please refresh.",
-            variant: "destructive",
-          });
-          // Still need to set loading states to false
-          setIsGraphLoading(false);
-          setInitialLoadComplete(true);
-          return;
+      const newDetails: Record<string, StockDetailsState> = {};
+      const newWatchlist: Stock[] = [...initialWatchlist]; // Start with the initial list
+      let firstSuccessfulStock: StockData | null = null;
+
+      results.forEach((result, index) => {
+        const ticker = initialWatchlist[index].ticker;
+
+        if (result.status === 'fulfilled' && result.value && result.value.length > 0) {
+          const data = result.value[0];
+          newDetails[ticker] = { ...data, opinionLoading: false };
+          // Find the stock in newWatchlist and update it
+          const stockIndex = newWatchlist.findIndex(s => s.ticker === ticker);
+          if (stockIndex !== -1) {
+            newWatchlist[stockIndex] = data.stock;
+          }
+          if (!firstSuccessfulStock) {
+            firstSuccessfulStock = data;
+          }
+        } else {
+          // Log error but don't show a toast for every single failure, which would be annoying
+          console.error(`Failed to load data for ${ticker}:`, result.status === 'rejected' ? result.reason : 'No data returned');
         }
+      });
+      
+      // Batch update states
+      setWatchlist(newWatchlist);
+      setStockDetails(prev => ({...prev, ...newDetails}));
 
-        const newDetails: Record<string, StockDetailsState> = {};
-        allStockData.forEach(data => {
-          newDetails[data.stock.ticker] = { ...data, opinionLoading: false };
-        });
-
-        const updatedWatchlist = allStockData.map(data => data.stock);
-        setWatchlist(updatedWatchlist);
-        setStockDetails(newDetails);
-
-        const tickerToSelect = allStockData[0]?.stock.ticker || null;
-        
-        if (tickerToSelect) {
-            handleStockSelection(tickerToSelect);
-        }
-
-      } catch (error) {
-        console.error("Failed to load initial stock data:", error);
+      // If we successfully loaded at least one stock, select it and fetch its opinion
+      if (firstSuccessfulStock) {
+        setSelectedTicker(firstSuccessfulStock.stock.ticker);
+        fetchOpinionForStock(firstSuccessfulStock.stock.ticker, firstSuccessfulStock.stock.name);
+      } else {
+        // Only show a major error toast if ALL requests failed
         toast({
           title: "API Error",
-          description: "An unexpected error occurred while loading watchlist.",
+          description: "Could not load watchlist data. The API may be busy. Please try refreshing.",
           variant: "destructive",
         });
-      } finally {
-        setIsGraphLoading(false);
-        setInitialLoadComplete(true);
       }
+
+      setIsGraphLoading(false);
+      setInitialLoadComplete(true);
     };
 
     if (!initialLoadComplete) {
       loadInitialData();
     }
-  }, [initialLoadComplete, toast, handleStockSelection]);
+  }, [initialLoadComplete, toast, fetchOpinionForStock]);
   
   // Effect to handle subsequent searches from the URL
   useEffect(() => {
@@ -437,5 +441,3 @@ function DashboardSkeleton() {
     </MainLayout>
   );
 }
-
-    

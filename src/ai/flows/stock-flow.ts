@@ -49,16 +49,18 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate fictional stock data using random numbers. Your output MUST be a valid JSON array matching the output schema. Do not add any commentary outside of the JSON object.
+  system: `You are a financial data API. You generate realistic-looking, but fictional, stock data. Your output MUST be a valid JSON array matching the output schema. Do not add any commentary outside of the JSON object.
 
 For EACH ticker provided in the input, you must generate a corresponding entry in the output array with the following rules:
 - Generate a plausible full company name for the ticker. If you do not recognize the ticker, invent a plausible name.
-- The stock's 'price', 'change', and 'changePercent' should be random numbers. The 'price' should be between 100 and 8000.
+- Generate a plausible 'price' for the stock, for example, between 50.00 and 8000.00.
+- The 'change' value should be a small, realistic fluctuation. For example, between -5% and +5% of the current price.
+- The 'changePercent' should be calculated from the 'price' and 'change' values ((change / (price - change)) * 100).
 - The chartData array must contain exactly 10 sequential monthly data points (e.g., 'Jan', 'Feb', ...).
-- For the first 6 historical points, the 'price' property must be a random number between 100 and 8000.
+- For all 10 points, the 'prediction' value should be a plausible price that creates a realistic-looking stock chart, with values that fluctuate around the main stock price.
+- For the first 6 historical points, the 'price' property must also be present and should form a continuous path with the prediction data, showing realistic up-and-down movement.
 - For the last 4 prediction points, the 'price' property must be absent.
-- For all 10 points, the 'prediction' property must be a random number between 100 and 8000.
-- The data does NOT need to be realistic or continuous. It should be random as requested.
+- The data should appear realistic and continuous, not completely random.
 - It is critical that you return an entry for every ticker provided in the input.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
