@@ -16,7 +16,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
@@ -83,16 +82,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter>
-          <div className="flex flex-col gap-2">
-            <div className="text-xs text-muted-foreground px-2">
-              &copy; 2024 Infinytix. All rights reserved.
-            </div>
-          </div>
-        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-16 items-center justify-between border-b px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b px-6">
           <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden" />
             <div className="relative hidden md:block">
@@ -128,9 +120,28 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-8">
+        <div className="flex-1 overflow-auto p-4 md:p-8">
           {children}
-        </main>
+        </div>
+        <footer className="shrink-0 border-t bg-card px-6 py-4">
+            <div className="container mx-auto flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
+              <p>&copy; {new Date().getFullYear()} Infinytix. All rights reserved.</p>
+              <div className="flex items-center gap-x-6">
+                <Link href="#" className="transition-colors hover:text-foreground">
+                  About
+                </Link>
+                <Link href="#" className="transition-colors hover:text-foreground">
+                  Contact
+                </Link>
+                <Link href="#" className="transition-colors hover:text-foreground">
+                  Privacy Policy
+                </Link>
+                <Link href="#" className="transition-colors hover:text-foreground">
+                  Terms of Service
+                </Link>
+              </div>
+            </div>
+        </footer>
       </SidebarInset>
     </SidebarProvider>
   );
