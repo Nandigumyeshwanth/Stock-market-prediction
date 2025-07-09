@@ -42,65 +42,118 @@ function Dashboard() {
   const [stockChartData, setStockChartData] = useState<Record<string, ChartData[]>>({});
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGraphLoading, setIsGraphLoading] = useState(true);
   const [opinion, setOpinion] = useState<string | null>(null);
   const [isOpinionLoading, setIsOpinionLoading] = useState(false);
   const graphCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const handleStockSelection = useCallback(async (ticker: string) => {
-    setIsLoading(true);
+  const fetchOpinion = useCallback(async (stock: Stock) => {
     setIsOpinionLoading(true);
-    setOpinion(null); // Clear previous opinion
+    setOpinion(null);
+    try {
+      const opinionData = await getStockOpinion({ ticker: stock.ticker, name: stock.name });
+      setOpinion(opinionData.opinion);
+    } catch (opinionError) {
+      console.error("Failed to get stock opinion:", opinionError);
+      setOpinion("Disclaimer: This is an AI-generated analysis and not financial advice. Failed to generate an opinion for this stock at this time.");
+    } finally {
+      setIsOpinionLoading(false);
+    }
+  }, []);
+
+  const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
 
-    if (graphCardRef.current) {
-        graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // If data is already loaded, just set the selected stock and fetch opinion
+    if (stockChartData[upperTicker]) {
+      const stockToSelect = watchlist.find(s => s.ticker === upperTicker);
+      if (stockToSelect) {
+        setSelectedStock(stockToSelect);
+        fetchOpinion(stockToSelect);
+      }
+      return;
     }
+    
+    // If data isn't loaded (e.g. from a new search), fetch it
+    setIsGraphLoading(true);
+    setOpinion(null);
     
     try {
       const data = await getStockData({ ticker: upperTicker });
       setSelectedStock(data.stock);
       setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
-      
-      // Update watchlist if the stock is in it, or add if it's new
       setWatchlist(prev => {
         const stockExists = prev.some(s => s.ticker === upperTicker);
-        if (stockExists) {
-            return prev.map(s => s.ticker === upperTicker ? data.stock : s);
+        if (!stockExists) {
+          return [data.stock, ...prev].slice(0, 10);
         }
-        // Add new stock to the top, but only keep the 10 most recent.
-        return [data.stock, ...prev].slice(0, 10);
+        return prev.map(s => s.ticker === upperTicker ? data.stock : s);
       });
-
-      // Fetch opinion after getting stock data
-      try {
-        const opinionData = await getStockOpinion({ ticker: data.stock.ticker, name: data.stock.name });
-        setOpinion(opinionData.opinion);
-      } catch (opinionError) {
-        console.error("Failed to get stock opinion:", opinionError);
-        setOpinion("Disclaimer: This is an AI-generated analysis and not financial advice. Failed to generate an opinion for this stock at this time.");
-      } finally {
-        setIsOpinionLoading(false);
-      }
-
+      fetchOpinion(data.stock);
     } catch (error) {
       console.error("Failed to get stock data:", error);
       toast({
         title: "Error",
-        description: `Could not find data for the stock: ${upperTicker}. The AI model may be temporarily unavailable.`,
+        description: `Could not find data for the stock: ${upperTicker}.`,
         variant: "destructive",
       });
-      // If the main data fetch fails, we should not proceed.
       setSelectedStock(null);
     } finally {
-      setIsLoading(false);
+      setIsGraphLoading(false);
     }
-  }, [toast]);
-  
+  }, [stockChartData, watchlist, toast, fetchOpinion]);
+
+  // Effect to handle initial load and subsequent searches
   useEffect(() => {
-    const ticker = searchParams.get('ticker');
-    handleStockSelection(ticker || "RELIANCE");
-  }, [searchParams, handleStockSelection]);
+    const hasLoaded = Object.keys(stockChartData).length > 0;
+    const ticker = searchParams.get('ticker')?.toUpperCase();
+
+    // Initial load: fetch all watchlist data
+    if (!hasLoaded) {
+      setIsLoading(true);
+      setIsGraphLoading(true);
+      
+      const loadInitialData = async () => {
+        try {
+          const results = await Promise.all(
+            initialWatchlist.map(stock => getStockData({ ticker: stock.ticker }))
+          );
+          
+          const newWatchlist = results.map(r => r.stock);
+          const newChartData = results.reduce((acc, r) => {
+            acc[r.stock.ticker] = r.chartData;
+            return acc;
+          }, {} as Record<string, ChartData[]>);
+          
+          setWatchlist(newWatchlist);
+          setStockChartData(newChartData);
+
+          const stockToSelect = newWatchlist.find(s => s.ticker === ticker) || newWatchlist[0];
+          setSelectedStock(stockToSelect);
+          fetchOpinion(stockToSelect);
+          
+        } catch (error) {
+          console.error("Failed to load initial watchlist data:", error);
+          toast({
+            title: "Error Loading Dashboard",
+            description: "Could not load initial market data.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+          setIsGraphLoading(false);
+        }
+      };
+      loadInitialData();
+    } else if (ticker && ticker !== selectedStock?.ticker) {
+      // Handle subsequent searches
+      handleStockSelection(ticker);
+      if (graphCardRef.current) {
+        graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [searchParams, selectedStock, stockChartData, handleStockSelection, fetchOpinion, toast]);
 
   const currentChartData = selectedStock ? stockChartData[selectedStock.ticker] : [];
 
@@ -135,14 +188,14 @@ function Dashboard() {
 
         <Card ref={graphCardRef}>
           <CardHeader>
-            {isLoading || !selectedStock ? (
+            {isGraphLoading || !selectedStock ? (
                 <Skeleton className="h-8 w-1/2" />
             ) : (
                 <CardTitle>{selectedStock.ticker} - {selectedStock.name} Performance</CardTitle>
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isLoading ? (
+           {isGraphLoading ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
