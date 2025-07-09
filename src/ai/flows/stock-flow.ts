@@ -4,7 +4,8 @@
  *
  * - getStockData - A function that returns realistic current and historical data for a list of stocks.
  * - StockDataInput - The input type for the getStockData function.
- * - StockDataOutput - The return type for the getStockData function.
+ * - StockData - The type for a single stock's data object.
+ * - StockDataOutput - The return type for the getStockData function (an array of StockData).
  */
 
 import { ai } from '@/ai/genkit';
@@ -27,8 +28,9 @@ const ChartDataSchema = z.object({
 const SingleStockDataSchema = z.object({
   stock: StockSchema,
   chartData: z.array(ChartDataSchema).describe('An array of 10 data points for the last 6 months and a 4-month prediction.'),
-  opinion: z.string().describe('A brief, balanced investment opinion for the stock, starting with a disclaimer: "Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research."')
 });
+export type StockData = z.infer<typeof SingleStockDataSchema>;
+
 
 // Input is now an array of tickers
 const StockDataInputSchema = z.object({
@@ -47,7 +49,7 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate realistic but fictional stock data and a brief financial opinion. You will be given a list of stock tickers. For EACH ticker, you MUST generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
+  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a list of stock tickers. For EACH ticker, you MUST generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
   prompt: `Generate data for the following tickers: {{#each tickers}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}.
@@ -58,8 +60,7 @@ For each ticker, ensure the generated data follows these rules:
 - The next 4 are predictions and must NOT have a 'price'.
 - All 10 points need a 'prediction'.
 - The company name must be realistic for the given ticker (e.g., 'RELIANCE' -> 'Reliance Industries').
-- Prices should be realistic for the Indian stock market (e.g., ₹100-₹5000).
-- The 'opinion' field must contain a 3-4 sentence analysis, starting with "Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research." followed by one potential positive and one potential negative aspect.`,
+- Prices should be realistic for the Indian stock market (e.g., ₹100-₹5000).`,
 });
 
 
