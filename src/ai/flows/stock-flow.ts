@@ -70,41 +70,48 @@ const stockDataFlow = ai.defineFlow(
     outputSchema: StockDataOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
+    try {
+      const { output } = await prompt(input);
 
-    if (!output) {
-      // If the model returns no output at all, we can't proceed.
-      // Return an empty array so the frontend can handle it gracefully.
-      console.error('AI model failed to generate any stock data.');
+      if (!output) {
+        // If the model returns no output at all, we can't proceed.
+        // Return an empty array so the frontend can handle it gracefully.
+        console.error('AI model failed to generate any stock data.');
+        return [];
+      }
+
+      // Apply the supervisor logic to each item in the array
+      const supervisedOutput = output.map(data => {
+        // Find the last data point that has a historical price.
+        const lastHistoricalDataIndex = data.chartData.findLastIndex(d => d.price !== undefined && d.price !== null);
+
+        if (lastHistoricalDataIndex !== -1) {
+          const lastHistoricalPoint = data.chartData[lastHistoricalDataIndex];
+          
+          if (lastHistoricalPoint.price) {
+            // RULE 1: The current stock price must match the last known historical price.
+            data.stock.price = lastHistoricalPoint.price;
+            
+            // RULE 2: The prediction line should be continuous with the price line.
+            // Set the prediction value of the last historical point to be the same as its price.
+            lastHistoricalPoint.prediction = lastHistoricalPoint.price;
+          }
+        }
+        return data;
+      });
+      
+      // Warn if the data is incomplete, but don't throw an error.
+      // This makes the app more resilient to AI flakiness.
+      if (supervisedOutput.length !== input.tickers.length) {
+        console.warn("The AI model did not return data for all requested tickers. Returning partial data.");
+      }
+
+      return supervisedOutput;
+    } catch (error: any) {
+      // Log the actual error for debugging, but don't let it crash the app.
+      console.error("An error occurred in the stockDataFlow:", error.message || error);
+      // Return an empty array to be handled gracefully by the frontend.
       return [];
     }
-
-    // Apply the supervisor logic to each item in the array
-    const supervisedOutput = output.map(data => {
-      // Find the last data point that has a historical price.
-      const lastHistoricalDataIndex = data.chartData.findLastIndex(d => d.price !== undefined && d.price !== null);
-
-      if (lastHistoricalDataIndex !== -1) {
-        const lastHistoricalPoint = data.chartData[lastHistoricalDataIndex];
-        
-        if (lastHistoricalPoint.price) {
-          // RULE 1: The current stock price must match the last known historical price.
-          data.stock.price = lastHistoricalPoint.price;
-          
-          // RULE 2: The prediction line should be continuous with the price line.
-          // Set the prediction value of the last historical point to be the same as its price.
-          lastHistoricalPoint.prediction = lastHistoricalPoint.price;
-        }
-      }
-      return data;
-    });
-    
-    // Warn if the data is incomplete, but don't throw an error.
-    // This makes the app more resilient to AI flakiness.
-    if (supervisedOutput.length !== input.tickers.length) {
-      console.warn("The AI model did not return data for all requested tickers. Returning partial data.");
-    }
-
-    return supervisedOutput;
   }
 );

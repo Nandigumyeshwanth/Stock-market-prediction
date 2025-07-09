@@ -44,6 +44,7 @@ function Dashboard() {
   const [stockDetails, setStockDetails] = useState<Record<string, StockDataOutput[0]>>({});
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const graphCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -105,10 +106,9 @@ function Dashboard() {
 
   // Effect to handle initial load and subsequent searches
   useEffect(() => {
-    const hasLoadedInitialStock = selectedTicker !== null;
     const searchTicker = searchParams.get('ticker')?.toUpperCase();
 
-    if (!hasLoadedInitialStock) {
+    if (!initialLoadComplete) {
         setIsGraphLoading(true);
 
         const loadInitialData = async () => {
@@ -117,6 +117,10 @@ function Dashboard() {
             
             try {
                 const allStockData = await getStockData({ tickers: allTickers });
+                
+                if (!allStockData || allStockData.length === 0) {
+                  throw new Error("API failed to return initial stock data.");
+                }
 
                 const newDetails: Record<string, StockDataOutput[0]> = {};
                 allStockData.forEach(d => {
@@ -127,7 +131,7 @@ function Dashboard() {
                 const newWatchlist: Stock[] = initialWatchlist.map(s => {
                     const data = newDetails[s.ticker];
                     return data ? data.stock : s;
-                }).filter(Boolean); // Filter out any potential nulls if data fails for a stock
+                }).filter(Boolean);
                 setWatchlist(newWatchlist);
                 
                 if (newDetails[firstTicker]) {
@@ -138,9 +142,10 @@ function Dashboard() {
 
             } catch (error) {
                 console.error("Failed to load initial watchlist data:", error);
-                toast({ title: "Error", description: "Could not load initial stock data.", variant: "destructive" });
+                toast({ title: "Error", description: "Could not load initial stock data. This may be due to API rate limits.", variant: "destructive" });
             } finally {
                  setIsGraphLoading(false);
+                 setInitialLoadComplete(true);
             }
         };
 
@@ -149,7 +154,7 @@ function Dashboard() {
     } else if (searchTicker && searchTicker !== selectedTicker) {
         handleStockSelection(searchTicker);
     }
-  }, [searchParams, handleStockSelection, selectedTicker]);
+  }, [searchParams, handleStockSelection, selectedTicker, initialLoadComplete, toast]);
 
   return (
     <MainLayout>
@@ -258,7 +263,7 @@ function Dashboard() {
                 <Skeleton className="h-4 w-3/4" />
               </div>
             ) : (
-              <p className="text-muted-foreground">{currentOpinion}</p>
+              <p className="text-muted-foreground">{currentOpinion || "No opinion available for this stock."}</p>
             )}
           </CardContent>
         </Card>
