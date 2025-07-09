@@ -125,19 +125,64 @@ function Dashboard() {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    const data = mockStockData[ticker.toUpperCase()];
+    const upperTicker = ticker.toUpperCase();
+    const data = mockStockData[upperTicker];
+
     if (data) {
         setSelectedStock(data.stock);
         setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
     } else {
+        // Create new mock data for the searched ticker
         toast({
-            title: "Not Found",
-            description: `Data for ${ticker} is not available. Please select from the watchlist.`,
-            variant: "destructive",
+          title: "Generating Mock Data",
+          description: `Displaying fictional data for ${upperTicker}.`,
+        });
+
+        const newMockStock: Stock = {
+            ticker: upperTicker,
+            name: `${upperTicker} (Fictional Data)`,
+            price: parseFloat((Math.random() * (5000 - 100) + 100).toFixed(2)),
+            change: parseFloat((Math.random() * 100 - 50).toFixed(2)),
+            changePercent: parseFloat((Math.random() * 5 - 2.5).toFixed(2))
+        };
+        
+        const newMockChartData: ChartData[] = Array.from({ length: 10 }, (_, i) => {
+            const date = new Date();
+            date.setMonth(date.getMonth() - (5 - i));
+            const month = date.toLocaleString('default', { month: 'short' });
+
+            if (i < 6) { // Historical data
+                const price = newMockStock.price * (1 + (Math.random() - 0.5) * 0.2 * (1 - (5 - i) / 5));
+                return { 
+                    date: month, 
+                    price: i === 5 ? newMockStock.price : parseFloat(price.toFixed(2)),
+                    prediction: parseFloat((price * (1 + (Math.random() - 0.45) * 0.05)).toFixed(2))
+                };
+            }
+            // Future prediction
+            const predictionPrice = newMockStock.price * (1 + (Math.random() - 0.4) * 0.2 * (1 + (i - 5) / 4));
+            return { 
+                date: month, 
+                prediction: parseFloat(predictionPrice.toFixed(2)) 
+            };
+        });
+        
+        const lastHistorical = newMockChartData[5];
+        if (lastHistorical && lastHistorical.price) {
+            lastHistorical.price = newMockStock.price;
+            lastHistorical.prediction = newMockStock.price;
+        }
+
+        setSelectedStock(newMockStock);
+        setStockChartData(prev => ({ ...prev, [upperTicker]: newMockChartData }));
+        setWatchlist(prev => {
+            if (prev.some(s => s.ticker === upperTicker)) {
+                return prev.map(s => s.ticker === upperTicker ? newMockStock : s);
+            }
+            return [...prev, newMockStock];
         });
     }
     
-    // Simulate loading
     setTimeout(() => setIsLoading(false), 300);
   }, [toast]);
 
