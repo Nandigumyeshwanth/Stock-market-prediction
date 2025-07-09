@@ -49,7 +49,7 @@ export async function getStockData(input: StockDataInput): Promise<StockDataOutp
 
 const prompt = ai.definePrompt({
   name: 'stockDataPrompt',
-  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a list of stock tickers. For EACH ticker, you must generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The company name should correspond to the ticker. The prices should be realistic. Do not add any commentary outside of the JSON object.`,
+  system: `You are a financial data API. You generate realistic but fictional stock data. You will be given a list of stock tickers. For EACH ticker, you must generate a corresponding entry in the output array. You MUST return a valid JSON array matching the output schema. The prices should be realistic. Do not add any commentary outside of the JSON object. If you do not recognize a ticker, you must still generate data for it. Create a plausible full company name that could correspond to the ticker and proceed with generating all other required data fields. It is critical that you return an entry for every ticker provided in the input.`,
   input: { schema: StockDataInputSchema },
   output: { schema: StockDataOutputSchema },
   prompt: `Generate data for the following tickers: {{#each tickers}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}.
@@ -59,7 +59,7 @@ For each ticker, ensure the generated data follows these rules:
 - The first 6 are historical and need a 'price'.
 - The next 4 are predictions and must NOT have a 'price'.
 - All 10 points need a 'prediction'.
-- The company name must be realistic for the given ticker (e.g., 'RELIANCE' -> 'Reliance Industries').
+- The company name must be realistic for the given ticker (e.g., 'RELIANCE' -> 'Reliance Industries'). If you do not recognize the ticker, invent a plausible company name.
 - Prices should be realistic for the Indian stock market (e.g., ₹100-₹5000).`,
 });
 
