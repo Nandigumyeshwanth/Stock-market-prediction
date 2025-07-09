@@ -95,10 +95,12 @@ function Dashboard() {
         description: `Could not find data for the stock: ${upperTicker}. Please try again.`,
         variant: "destructive",
       });
+      // Revert selection if the fetch fails
+      setSelectedTicker(prev => prev === upperTicker ? (watchlist.length > 0 ? watchlist[0].ticker : null) : prev);
     } finally {
       setIsGraphLoading(false);
     }
-  }, [stockDetails, toast]);
+  }, [stockDetails, toast, watchlist]);
 
 
   // Effect to handle initial load and subsequent searches
@@ -147,8 +149,7 @@ function Dashboard() {
     } else if (searchTicker && searchTicker !== selectedTicker) {
         handleStockSelection(searchTicker);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, handleStockSelection, selectedTicker]);
 
   return (
     <MainLayout>
@@ -350,6 +351,18 @@ function DashboardSkeleton() {
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
+              </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Watchlist</CardTitle>
+          </CardHeader>
+          <CardContent>
+             <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
               </div>
           </CardContent>
         </Card>
