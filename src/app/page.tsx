@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getStockData, type StockDataOutput } from "@/ai/flows/stock-flow";
-import { getStockOpinion, type StockOpinionOutput } from "@/ai/flows/stock-opinion-flow";
 
 const indices: Index[] = [
   { name: "NIFTY 50", value: "23,537.85", change: "+66.70", changePercent: 0.28 },
@@ -42,38 +41,24 @@ const initialWatchlist: Stock[] = [
 function Dashboard() {
   const searchParams = useSearchParams();
   const [watchlist, setWatchlist] = useState<Stock[]>(initialWatchlist);
-  const [stockChartData, setStockChartData] = useState<Record<string, ChartData[]>>({});
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [stockDetails, setStockDetails] = useState<Record<string, StockDataOutput[0]>>({});
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState(true);
-  const [opinion, setOpinion] = useState<string | null>(null);
-  const [isOpinionLoading, setIsOpinionLoading] = useState(false);
   const graphCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const fetchOpinion = useCallback(async (stock: Stock) => {
-    setIsOpinionLoading(true);
-    setOpinion(null);
-    try {
-      const opinionData = await getStockOpinion({ ticker: stock.ticker, name: stock.name });
-      setOpinion(opinionData.opinion);
-    } catch (opinionError) {
-      console.error("Failed to get stock opinion:", opinionError);
-      setOpinion("Disclaimer: This is an AI-generated analysis and not financial advice. Failed to generate an opinion for this stock at this time.");
-    } finally {
-      setIsOpinionLoading(false);
-    }
-  }, []);
+  const selectedStockData = selectedTicker ? stockDetails[selectedTicker] : null;
+  const selectedStock = selectedStockData?.stock;
+  const currentChartData = selectedStockData?.chartData || [];
+  const currentOpinion = selectedStockData?.opinion;
+
 
   const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
 
-    // If data is already loaded, just set the selected stock and fetch opinion
-    if (stockChartData[upperTicker]) {
-      const stockToSelect = watchlist.find(s => s.ticker === upperTicker);
-      if (stockToSelect) {
-        setSelectedStock(stockToSelect);
-        fetchOpinion(stockToSelect);
-      }
+    // If data is already loaded, just set the selected stock
+    if (stockDetails[upperTicker]) {
+      setSelectedTicker(upperTicker);
       if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -82,7 +67,7 @@ function Dashboard() {
     
     // If data isn't loaded (e.g. from a new search), fetch it
     setIsGraphLoading(true);
-    setOpinion(null);
+    setSelectedTicker(upperTicker); // Select it immediately to show loading state
     if (graphCardRef.current) {
       graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -95,8 +80,7 @@ function Dashboard() {
       }
       const data = dataArray[0];
 
-      setSelectedStock(data.stock);
-      setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
+      setStockDetails(prev => ({ ...prev, [data.stock.ticker]: data }));
       setWatchlist(prev => {
         const stockExists = prev.some(s => s.ticker === upperTicker);
         if (!stockExists) {
@@ -104,7 +88,6 @@ function Dashboard() {
         }
         return prev.map(s => s.ticker === upperTicker ? data.stock : s);
       });
-      fetchOpinion(data.stock);
     } catch (error) {
       console.error("Failed to get stock data:", error);
       toast({
@@ -115,48 +98,42 @@ function Dashboard() {
     } finally {
       setIsGraphLoading(false);
     }
-  }, [stockChartData, watchlist, toast, fetchOpinion]);
+  }, [stockDetails, toast]);
+
 
   // Effect to handle initial load and subsequent searches
   useEffect(() => {
-    const hasLoadedInitialStock = selectedStock !== null;
-    const ticker = searchParams.get('ticker')?.toUpperCase();
+    const hasLoadedInitialStock = selectedTicker !== null;
+    const searchTicker = searchParams.get('ticker')?.toUpperCase();
 
     if (!hasLoadedInitialStock) {
         setIsGraphLoading(true);
 
         const loadInitialData = async () => {
-            const firstTicker = ticker || initialWatchlist[0].ticker;
+            const firstTicker = searchTicker || initialWatchlist[0].ticker;
             const allTickers = initialWatchlist.map(s => s.ticker);
             
             try {
                 const allStockData = await getStockData({ tickers: allTickers });
 
-                const dataMap = new Map(allStockData.map(d => [d.stock.ticker, d]));
+                const newDetails: Record<string, StockDataOutput[0]> = {};
+                allStockData.forEach(d => {
+                    newDetails[d.stock.ticker] = d;
+                });
+                setStockDetails(newDetails);
                 
                 const newWatchlist: Stock[] = initialWatchlist.map(s => {
-                    const data = dataMap.get(s.ticker);
+                    const data = newDetails[s.ticker];
                     return data ? data.stock : s;
-                });
+                }).filter(Boolean); // Filter out any potential nulls if data fails for a stock
                 setWatchlist(newWatchlist);
                 
-                const newChartData: Record<string, ChartData[]> = {};
-                allStockData.forEach(d => {
-                    newChartData[d.stock.ticker] = d.chartData;
-                });
-                setStockChartData(newChartData);
-
-                const firstStockData = dataMap.get(firstTicker);
-                if (firstStockData) {
-                    setSelectedStock(firstStockData.stock);
-                    fetchOpinion(firstStockData.stock);
-                } else {
-                    console.error(`Could not find data for primary ticker ${firstTicker} in batch response.`);
-                    if (allStockData.length > 0) {
-                        setSelectedStock(allStockData[0].stock);
-                        fetchOpinion(allStockData[0].stock);
-                    }
+                if (newDetails[firstTicker]) {
+                    setSelectedTicker(firstTicker);
+                } else if (allStockData.length > 0) {
+                    setSelectedTicker(allStockData[0].stock.ticker);
                 }
+
             } catch (error) {
                 console.error("Failed to load initial watchlist data:", error);
                 toast({ title: "Error", description: "Could not load initial stock data.", variant: "destructive" });
@@ -167,13 +144,11 @@ function Dashboard() {
 
         loadInitialData();
 
-    } else if (ticker && ticker !== selectedStock?.ticker) {
-        handleStockSelection(ticker);
+    } else if (searchTicker && searchTicker !== selectedTicker) {
+        handleStockSelection(searchTicker);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-
-  const currentChartData = selectedStock ? stockChartData[selectedStock.ticker] : [];
 
   return (
     <MainLayout>
@@ -206,14 +181,14 @@ function Dashboard() {
 
         <Card ref={graphCardRef}>
           <CardHeader>
-            {isGraphLoading || !selectedStock ? (
+            {isGraphLoading && !selectedStock ? (
                 <Skeleton className="h-8 w-1/2" />
             ) : (
-                <CardTitle>{selectedStock.ticker} - {selectedStock.name} Performance</CardTitle>
+                <CardTitle>{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isGraphLoading ? (
+           {isGraphLoading && (!selectedStockData || selectedTicker !== selectedStockData?.stock.ticker) ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
@@ -275,14 +250,14 @@ function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isOpinionLoading ? (
+             {isGraphLoading && (!selectedStockData || selectedTicker !== selectedStockData?.stock.ticker) ? (
               <div className="space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
               </div>
             ) : (
-              <p className="text-muted-foreground">{opinion}</p>
+              <p className="text-muted-foreground">{currentOpinion}</p>
             )}
           </CardContent>
         </Card>
@@ -310,7 +285,7 @@ function Dashboard() {
                       "transition-colors",
                       stock.price > 0 ? "cursor-pointer" : "cursor-wait"
                     )}
-                    data-state={selectedStock?.ticker === stock.ticker ? "selected" : "unselected"}
+                    data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
                   >
                     <TableCell>
                       <Badge variant="outline">{stock.ticker}</Badge>
@@ -364,9 +339,18 @@ function DashboardSkeleton() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><Skeleton className="h-8 w-32" /></CardHeader>
+          <CardHeader>
+             <CardTitle className="flex items-center gap-2">
+              <Lightbulb className="h-6 w-6 text-yellow-400" />
+              AI Financial Opinion
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            <Skeleton className="h-40 w-full" />
+            <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
           </CardContent>
         </Card>
       </div>
