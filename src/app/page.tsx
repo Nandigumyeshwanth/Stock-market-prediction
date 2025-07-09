@@ -68,7 +68,8 @@ function Dashboard() {
         if (stockExists) {
             return prev.map(s => s.ticker === upperTicker ? data.stock : s);
         }
-        return [data.stock, ...prev];
+        // Add new stock to the top, but only keep the 10 most recent.
+        return [data.stock, ...prev].slice(0, 10);
       });
 
       // Fetch opinion after getting stock data
@@ -86,7 +87,7 @@ function Dashboard() {
       console.error("Failed to get stock data:", error);
       toast({
         title: "Error",
-        description: `Could not find data for the stock: ${upperTicker}. Please try another.`,
+        description: `Could not find data for the stock: ${upperTicker}. The AI model may be temporarily unavailable.`,
         variant: "destructive",
       });
       // If the main data fetch fails, we should not proceed.
@@ -96,28 +97,6 @@ function Dashboard() {
     }
   }, [toast]);
   
-  // Effect to fetch initial data for the default watchlist on component mount
-  useEffect(() => {
-    const fetchWatchlistData = async () => {
-      const updatedWatchlist = await Promise.all(
-        initialWatchlist.map(async (stock) => {
-          try {
-            const data = await getStockData({ ticker: stock.ticker });
-            setStockChartData(prev => ({ ...prev, [data.stock.ticker]: data.chartData }));
-            return data.stock;
-          } catch (e) {
-            console.error(`Failed to fetch initial data for ${stock.ticker}`, e);
-            return stock; // Return original stock on error
-          }
-        })
-      );
-      setWatchlist(updatedWatchlist);
-    };
-
-    fetchWatchlistData();
-  }, []);
-
-
   useEffect(() => {
     const ticker = searchParams.get('ticker');
     handleStockSelection(ticker || "RELIANCE");
