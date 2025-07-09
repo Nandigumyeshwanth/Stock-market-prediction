@@ -123,25 +123,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 overflow-auto p-4 md:p-8">
           {children}
         </div>
-        <footer className="shrink-0 border-t bg-card px-6 py-4">
-            <div className="container mx-auto flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
-              <p>&copy; {new Date().getFullYear()} Infinytix. All rights reserved.</p>
-              <div className="flex items-center gap-x-6">
-                <Link href="#" className="transition-colors hover:text-foreground">
-                  About
-                </Link>
-                <Link href="#" className="transition-colors hover:text-foreground">
-                  Contact
-                </Link>
-                <Link href="#" className="transition-colors hover:text-foreground">
-                  Privacy Policy
-                </Link>
-                <Link href="#" className="transition-colors hover:text-foreground">
-                  Terms of Service
-                </Link>
-              </div>
-            </div>
-        </footer>
       </SidebarInset>
     </SidebarProvider>
   );
