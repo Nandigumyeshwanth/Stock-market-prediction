@@ -60,7 +60,8 @@ For each ticker, ensure the generated data follows these rules:
 - The next 4 are predictions and must NOT have a 'price'.
 - All 10 points need a 'prediction'.
 - The company name must be realistic for the given ticker (e.g., 'RELIANCE' -> 'Reliance Industries'). If you do not recognize the ticker, invent a plausible company name.
-- Prices should be realistic for the Indian stock market (e.g., ₹100-₹5000).`,
+- Prices should be realistic for the Indian stock market (e.g., ₹100-₹5000).
+- The historical and prediction prices in chartData should show realistic, small fluctuations around the main stock price. The data should look like a real stock chart, not random numbers.`,
 });
 
 
