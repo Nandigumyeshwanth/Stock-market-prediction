@@ -22,7 +22,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -32,7 +31,6 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const { toast } = useToast();
   const router = useRouter();
 
   const form = useForm<LoginFormValues>({
@@ -44,11 +42,16 @@ export default function LoginPage() {
   });
 
   const onSubmit = (data: LoginFormValues) => {
+    // In a real app, you would validate credentials against a backend.
+    // For this prototype, we'll just simulate a successful login.
     console.log("Logging in user:", data);
-    toast({
-      title: "Login Successful!",
-      description: "Welcome back.",
-    });
+    
+    // Simulate creating a session by storing a token in localStorage.
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("authToken", `fake-token-for-${data.email}`);
+    }
+
+    // Redirect to the dashboard page after login.
     router.push("/");
   };
 

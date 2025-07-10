@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { REAL_STOCK_DATA } from "@/lib/real-stock-data";
+import withAuth from "@/components/with-auth";
 
 
 const initialHoldings: Holding[] = [
@@ -228,4 +229,4 @@ const PortfolioPage = () => {
   );
 };
 
-export default PortfolioPage;
+export default withAuth(PortfolioPage);

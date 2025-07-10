@@ -1,8 +1,8 @@
 
 "use client";
-import { Suspense, useEffect, useState, useRef, useCallback } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getStockData } from "@/ai/flows/stock-flow";
 import { Button } from "@/components/ui/button";
+import withAuth from "@/components/with-auth";
 
 
 type StockData = {
@@ -69,63 +70,10 @@ function Dashboard() {
     return [Math.floor(min - padding), Math.ceil(max + padding)];
   };
 
-  const handleStockSelection = useCallback(async (ticker: string) => {
-    const upperTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
-  
-    // Always update the selected ticker and scroll
-    setSelectedTicker(upperTicker);
-    setStockToAdd(null); // Clear any pending additions
-  
-    if (graphCardRef.current) {
-      graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  
-    // If we don't have data for this ticker, fetch it.
-    if (!stockDetails[upperTicker]) {
-      setIsGraphLoading(true);
-      try {
-        const dataArray = await getStockData({ tickers: [upperTicker] });
-  
-        if (!dataArray || dataArray.length === 0) {
-          toast({
-            title: "Data Not Found",
-            description: `Could not load data for ${upperTicker}. Please try again shortly.`,
-            variant: "destructive",
-          });
-          setIsGraphLoading(false);
-          return;
-        }
-        const data = dataArray[0];
-  
-        setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
-        
-        // After fetching, check if it's in the watchlist to prompt the user
-        const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
-        if (!stockExistsInWatchlist) {
-            setStockToAdd(data.stock);
-        }
-  
-      } catch (error) {
-        console.error(`Failed to load stock details for ${upperTicker}:`, error);
-        toast({
-          title: "Error",
-          description: `An unexpected error occurred while loading data for ${upperTicker}.`,
-          variant: "destructive",
-        });
-      } finally {
-        setIsGraphLoading(false);
-      }
-    } else {
-      // If we *do* have the data, check if we need to prompt to add to watchlist
-      const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
-      if (!stockExistsInWatchlist) {
-        const existingData = stockDetails[upperTicker];
-        if (existingData) {
-          setStockToAdd(existingData.stock);
-        }
-      }
-    }
-  }, [stockDetails, toast, watchlist]);
+  const handleStockSelection = (ticker: string) => {
+    // This function is no longer needed as the interactive functionality has been removed.
+    // It is kept to prevent breaking any potential future implementations.
+  };
 
   const selectedStockData = selectedTicker ? stockDetails[selectedTicker] : null;
   const selectedStock = selectedStockData?.stock;
@@ -195,11 +143,12 @@ function Dashboard() {
   }, [initialLoadComplete, toast]);
   
   useEffect(() => {
-    const searchTicker = searchParams.get('ticker')?.toUpperCase().replace(/\s/g, '');
+    const searchTicker = searchParams.get('ticker')?.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
     if (searchTicker && initialLoadComplete && searchTicker !== selectedTicker) {
-      handleStockSelection(searchTicker);
+      // This part is now intentionally left blank as the interactive selection from search
+      // is part of the feature that was requested to be removed.
     }
-  }, [searchParams, initialLoadComplete, selectedTicker, handleStockSelection]);
+  }, [searchParams, initialLoadComplete, selectedTicker]);
 
   return (
     <MainLayout>
@@ -336,11 +285,7 @@ function Dashboard() {
                 {watchlist.map((stock) => (
                   <TableRow 
                     key={stock.ticker}
-                    className={cn(
-                      "transition-colors border-border/20",
-                       "data-[state=selected]:bg-muted/50"
-                    )}
-                    data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
+                    className="transition-colors border-border/20"
                   >
                     <TableCell>
                       <Badge variant="secondary" className="font-mono">{stock.ticker}</Badge>
@@ -369,10 +314,12 @@ function Dashboard() {
 }
 
 // Wrap the page in a Suspense boundary to allow useSearchParams to work with static rendering.
+const AuthenticatedDashboard = withAuth(Dashboard);
+
 export default function HomePage() {
   return (
     <Suspense fallback={<DashboardSkeleton />}>
-      <Dashboard />
+      <AuthenticatedDashboard />
     </Suspense>
   )
 }
