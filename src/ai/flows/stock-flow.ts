@@ -8,6 +8,7 @@
 import {ai} from '@/ai/genkit';
 import type {ChartData, Stock} from '@/lib/types';
 import {z} from 'genkit';
+import { REAL_STOCK_DATA } from '@/lib/real-stock-data';
 
 // --- Zod Schemas for Input and Output ---
 
@@ -54,37 +55,6 @@ type StockData = z.infer<typeof StockOutputSchema> & {
 
 
 // --- AI Prompts ---
-
-const stockInfoPrompt = ai.definePrompt({
-  name: 'stockInfoPrompt',
-  input: {schema: StockInputSchema},
-  output: {schema: StockOutputSchema},
-  prompt: `You are a financial data provider. For the stock ticker "{{ticker}}", generate realistic but fictional data in INR.
-- The company name should be plausible for the given ticker.
-- The price should be a random number between 500 and 1500.
-- The change should be a random fluctuation between -5% and +5% of the price.
-If you do not recognize the ticker, generate plausible data for a fictional company with that ticker.`,
-  config: {
-    safetySettings: [
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
-       {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_NONE',
-      },
-    ],
-  },
-});
 
 const chartDataPrompt = ai.definePrompt({
   name: 'chartDataPrompt',
@@ -137,19 +107,33 @@ const stockOpinionPrompt = ai.definePrompt({
 });
 
 // --- Fallback Data Generation ---
-
-const generateMockStockInfo = (ticker: string): Stock => {
-  const price = Math.random() * (1500 - 500) + 500;
-  const changePercent = (Math.random() * 10) - 5; // -5% to +5%
-  const change = price * (changePercent / 100);
-  return {
-    ticker,
-    name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Fictional Inc.`,
-    price,
-    change,
-    changePercent,
-  };
+const getStockInfoFromRealData = (ticker: string): Stock => {
+    const stock = REAL_STOCK_DATA[ticker];
+    if (stock) {
+        const price = stock.price;
+        const changePercent = stock.changePercent;
+        const change = price * (changePercent / 100);
+        return {
+            ticker,
+            name: stock.name,
+            price,
+            change,
+            changePercent,
+        };
+    }
+    // Fallback for tickers not in our real data list
+    const price = Math.random() * (1500 - 500) + 500;
+    const changePercent = (Math.random() * 10) - 5;
+    const change = price * (changePercent / 100);
+    return {
+        ticker,
+        name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Fictional Inc.`,
+        price,
+        change,
+        changePercent,
+    };
 };
+
 
 const generateMockChartData = (price: number): ChartData[] => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -191,8 +175,8 @@ const getStockDataFlow = ai.defineFlow(
   async ({tickers}) => {
     const stockDataPromises = tickers.map(async (ticker) => {
       try {
-        const {output: stockInfo} = await stockInfoPrompt({ticker});
-        if (!stockInfo || !stockInfo.price) throw new Error('Failed to get stock info');
+        // Get base stock info from our real data list
+        const stockInfo = getStockInfoFromRealData(ticker);
 
         const {output: chartDataObj} = await chartDataPrompt({ticker, price: stockInfo.price});
         if (!chartDataObj || !chartDataObj.chartData || chartDataObj.chartData.length === 0) throw new Error('Failed to get chart data');
@@ -200,7 +184,7 @@ const getStockDataFlow = ai.defineFlow(
         return { stock: stockInfo, chartData: chartDataObj.chartData };
       } catch (error) {
         console.error(`AI generation failed for ${ticker}, using mock data. Error:`, error);
-        const mockStockInfo = generateMockStockInfo(ticker);
+        const mockStockInfo = getStockInfoFromRealData(ticker);
         const mockChartData = generateMockChartData(mockStockInfo.price);
         return {
           stock: mockStockInfo,

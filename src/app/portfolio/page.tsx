@@ -27,12 +27,14 @@ import { ArrowDown, ArrowUp, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { REAL_STOCK_DATA } from "@/lib/real-stock-data";
 
 
 const initialHoldings: Holding[] = [
-  { ticker: "RELIANCE", name: "Reliance Industries Ltd.", shares: 20, avgCost: 2800.00, currentPrice: 2960.55 },
-  { ticker: "ADANIENT", name: "Adani Enterprises Ltd.", shares: 15, avgCost: 3250.00, currentPrice: 3185.00 },
-  { ticker: "TCS", name: "Tata Consultancy Services", shares: 30, avgCost: 3750.75, currentPrice: 3820.75 },
+  { ticker: "RELIANCE", name: "Reliance Industries Ltd.", shares: 20, avgCost: 1450.00, currentPrice: REAL_STOCK_DATA['RELIANCE'].price },
+  { ticker: "ADANIENT", name: "Adani Enterprises Ltd.", shares: 15, avgCost: 2500.00, currentPrice: REAL_STOCK_DATA['ADANIENT'].price },
+  { ticker: "TCS", name: "Tata Consultancy Services", shares: 30, avgCost: 3300.75, currentPrice: REAL_STOCK_DATA['TCS'].price },
+  { ticker: "WIPRO", name: "Wipro Ltd.", shares: 100, avgCost: 250.00, currentPrice: REAL_STOCK_DATA['WIPRO'].price },
 ];
 
 const PortfolioPage = () => {
@@ -45,8 +47,17 @@ const PortfolioPage = () => {
   const totalCost = holdings.reduce((acc, h) => acc + h.shares * h.avgCost, 0);
   const totalGainLoss = totalValue - totalCost;
   const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
+  
   // Mock day's gain/loss
-  const dayGainLoss = 253.78;
+  const dayGainLoss = holdings.reduce((acc, h) => {
+    const stockData = REAL_STOCK_DATA[h.ticker];
+    if (stockData) {
+      const change = (stockData.price * (stockData.changePercent / 100));
+      return acc + (change * h.shares);
+    }
+    return acc;
+  }, 0);
+
   const dayGainLossPercent = (totalValue - dayGainLoss) !== 0 ? (dayGainLoss / (totalValue - dayGainLoss)) * 100 : 0;
 
 
@@ -58,6 +69,7 @@ const PortfolioPage = () => {
   const handleAddStock = (e: React.FormEvent) => {
     e.preventDefault();
     const { ticker, shares, price } = newStock;
+    const upperTicker = ticker.toUpperCase();
     
     if (!ticker || !shares || !price || parseFloat(shares) <= 0 || parseFloat(price) < 0) {
         toast({
@@ -68,12 +80,14 @@ const PortfolioPage = () => {
         return;
     }
 
+    const stockData = REAL_STOCK_DATA[upperTicker];
+
     const newHolding: Holding = {
-        ticker: ticker.toUpperCase(),
-        name: `${ticker.toUpperCase()} - (Custom)`,
+        ticker: upperTicker,
+        name: stockData ? stockData.name : `${upperTicker} - (Custom)`,
         shares: parseFloat(shares),
         avgCost: parseFloat(price),
-        currentPrice: parseFloat(price),
+        currentPrice: stockData ? stockData.price : parseFloat(price),
     };
 
     setHoldings(prevHoldings => [...prevHoldings, newHolding]);
@@ -81,7 +95,7 @@ const PortfolioPage = () => {
     setIsDialogOpen(false);
     toast({
       title: "Stock Added",
-      description: `${shares} shares of ${ticker.toUpperCase()} added to your portfolio.`,
+      description: `${shares} shares of ${upperTicker} added to your portfolio.`,
     })
   };
 

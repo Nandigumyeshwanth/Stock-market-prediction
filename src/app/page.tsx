@@ -33,14 +33,14 @@ const indices: Index[] = [
 ];
 
 const initialWatchlist: Stock[] = [
-    { ticker: "RELIANCE", name: "Reliance Industries", price: 0, change: 0, changePercent: 0 },
-    { ticker: "TCS", name: "Tata Consultancy", price: 0, change: 0, changePercent: 0 },
-    { ticker: "HDFCBANK", name: "HDFC Bank", price: 0, change: 0, changePercent: 0 },
-    { ticker: "INFY", name: "Infosys", price: 0, change: 0, changePercent: 0 },
-    { ticker: "ADANIENT", name: "Adani Enterprises", price: 0, change: 0, changePercent: 0 },
-    { ticker: "WIPRO", name: "Wipro", price: 0, change: 0, changePercent: 0 },
-    { ticker: "TATAMOTORS", name: "Tata Motors", price: 0, change: 0, changePercent: 0 },
-    { ticker: "ITC", name: "ITC Limited", price: 0, change: 0, changePercent: 0 },
+    { ticker: "RELIANCE", name: "Reliance Industries Ltd.", price: 0, change: 0, changePercent: 0 },
+    { ticker: "HDFCBANK", name: "HDFC Bank Ltd.", price: 0, change: 0, changePercent: 0 },
+    { ticker: "TCS", name: "Tata Consultancy Services Ltd.", price: 0, change: 0, changePercent: 0 },
+    { ticker: "BHARTIARTL", name: "Bharti Airtel Ltd.", price: 0, change: 0, changePercent: 0 },
+    { ticker: "ICICIBANK", name: "ICICI Bank Ltd.", price: 0, change: 0, changePercent: 0 },
+    { ticker: "SBIN", name: "State Bank of India", price: 0, change: 0, changePercent: 0 },
+    { ticker: "INFY", name: "Infosys Ltd.", price: 0, change: 0, changePercent: 0 },
+    { ticker: "ITC", name: "ITC Ltd.", price: 0, change: 0, changePercent: 0 },
 ];
 
 type StockDetailsState = StockData & {
