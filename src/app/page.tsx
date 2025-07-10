@@ -92,10 +92,10 @@ function Dashboard() {
     }));
 
     try {
-        const { opinion } = await getStockOpinion({ticker, name});
+        const { recommendation } = await getStockOpinion({ticker, name});
         setStockDetails(prev => ({
             ...prev,
-            [ticker]: { ...prev[ticker], opinion, opinionLoading: false }
+            [ticker]: { ...prev[ticker], opinion: recommendation, opinionLoading: false }
         }));
     } catch (error) {
         console.error(`Failed to fetch opinion for ${ticker}:`, error);
@@ -307,18 +307,25 @@ function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-6 w-6 text-yellow-400" />
-              AI Financial Opinion
+              My Opinion
             </CardTitle>
           </CardHeader>
           <CardContent>
              {isOpinionLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-full mt-4" />
               </div>
             ) : (
-              <p className="text-muted-foreground">{currentOpinion || "Select a stock to see the AI opinion."}</p>
+              <div>
+                <p className="font-semibold text-lg">{currentOpinion || "Select a stock to see the opinion."}</p>
+                {currentOpinion && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research before making any investment decisions.
+                    </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -406,7 +413,7 @@ function DashboardSkeleton() {
           <CardHeader>
              <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-6 w-6 text-yellow-400" />
-              AI Financial Opinion
+              My Opinion
             </CardTitle>
           </CardHeader>
           <CardContent>

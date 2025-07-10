@@ -32,12 +32,13 @@ const StockOpinionInputSchema = z.object({
 });
 
 const StockOpinionOutputSchema = z.object({
-  opinion: z
+  recommendation: z
     .string()
     .describe(
-      'A concise, one-paragraph financial opinion on the stock. Start with a disclaimer that this is not financial advice. Mention potential for growth and potential challenges.'
+      'A clear recommendation on whether to buy the stock or not. For example: "You should consider buying this stock." or "It may be better to hold off on this stock for now."'
     ),
 });
+
 
 const ChartDataSchema = z.object({
   date: z.string().describe('The date for the data point (e.g., "Jan", "Feb").'),
@@ -95,7 +96,7 @@ const stockOpinionPrompt = ai.definePrompt({
   name: 'stockOpinionPrompt',
   input: {schema: StockOpinionInputSchema},
   output: {schema: StockOpinionOutputSchema},
-  prompt: `You are a financial analyst. Provide a concise, one-paragraph financial opinion for {{{name}}} ({{{ticker}}}). Start with a disclaimer: "Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research." Then, briefly mention its potential for growth and any challenges it might face.`,
+  prompt: `You are a financial analyst. Based on the company {{{name}}} ({{{ticker}}}), provide a clear and concise recommendation on whether to buy the stock or not.`,
   config: {
     safetySettings: [
       {
@@ -213,7 +214,7 @@ const getStockOpinionFlow = ai.defineFlow(
         return output;
     } catch (error) {
         console.error(`Failed to get opinion for ${input.ticker}:`, error);
-        return { opinion: "Disclaimer: This is an AI-generated analysis and not financial advice. AI opinion is currently unavailable for this stock, please conduct your own research." };
+        return { recommendation: "AI opinion is currently unavailable for this stock." };
     }
   }
 );
@@ -227,6 +228,6 @@ export async function getStockData(input: { tickers: string[] }): Promise<StockD
   return results || [];
 }
 
-export async function getStockOpinion(input: {ticker: string; name: string}): Promise<{opinion: string}> {
+export async function getStockOpinion(input: {ticker: string; name: string}): Promise<{recommendation: string}> {
   return getStockOpinionFlow(input);
 }
