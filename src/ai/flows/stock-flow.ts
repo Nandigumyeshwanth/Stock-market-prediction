@@ -92,7 +92,8 @@ const chartDataPrompt = ai.definePrompt({
   output: { schema: ChartDataOutputSchema },
   prompt: `You are a financial data provider. For the stock "{{ticker}}" with a current price of {{price}} INR, generate a time-series chart data for 10 consecutive months.
 - The data should be an array of 10 objects, each with a "date" (e.g., "Jan", "Feb") and either a "price" or "prediction" property.
-- The first 6 months are historical data. Their objects must have a "price" property. The historical prices should show plausible fluctuations, with the 6th month's price being close to the current price.
+- The first 6 months are historical data. Their objects must have a "price" property. The historical prices should show plausible fluctuations.
+- CRITICAL: The 6th month's price MUST be exactly {{price}}.
 - The next 4 months are future predictions. Their objects must have a "prediction" property. The prediction should start from the last historical price and show a plausible future trend.
 - Ensure each object has EITHER a 'price' OR a 'prediction' key, but not both.`,
   config: {
@@ -154,12 +155,14 @@ const generateMockChartData = (price: number): ChartData[] => {
     let currentPrice = price * (1 - (Math.random() * 0.2 - 0.1)); // Start history 10% above/below current price
 
     // Historical data
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
         data.push({ date: months[i], price: parseFloat(currentPrice.toFixed(2)) });
         currentPrice *= (1 + (Math.random() * 0.1 - 0.05)); // Fluctuate by -5% to +5%
     }
-    // Ensure last historical point is near the actual price
-    data[5].price = price;
+    // Ensure last historical point IS the actual price
+    data.push({ date: months[5], price: parseFloat(price.toFixed(2)) });
+    
+    currentPrice = price; // Reset for prediction start
 
     // Predicted data
     for (let i = 6; i < 10; i++) {
