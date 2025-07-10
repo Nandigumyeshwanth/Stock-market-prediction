@@ -110,14 +110,14 @@ const stockOpinionPrompt = ai.definePrompt({
 
 // --- Fallback Data Generation ---
 const getStockInfoFromRealData = (ticker: string): Stock => {
-    const upperTicker = ticker.toUpperCase();
-    const stock = REAL_STOCK_DATA[upperTicker];
+    const lookupTicker = ticker.toUpperCase().replace(/\s/g, '');
+    const stock = REAL_STOCK_DATA[lookupTicker];
     if (stock) {
         const price = stock.price;
         const changePercent = stock.changePercent;
         const change = price * (changePercent / 100);
         return {
-            ticker: upperTicker,
+            ticker: lookupTicker,
             name: stock.name,
             price,
             change,
@@ -125,11 +125,12 @@ const getStockInfoFromRealData = (ticker: string): Stock => {
         };
     }
     // Fallback for tickers not in our real data list
+    console.warn(`Ticker ${lookupTicker} not found in REAL_STOCK_DATA. Using mock data.`);
     const price = Math.random() * (1500 - 500) + 500;
     const changePercent = (Math.random() * 10) - 5;
     const change = price * (changePercent / 100);
     return {
-        ticker: upperTicker,
+        ticker: lookupTicker,
         name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Fictional Inc.`,
         price,
         change,
