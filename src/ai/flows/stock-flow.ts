@@ -60,6 +60,14 @@ const stockInfoPrompt = ai.definePrompt({
   input: {schema: StockInputSchema},
   output: {schema: StockOutputSchema},
   prompt: `You are a financial data provider. Generate realistic but fictional stock data for the company with the ticker symbol: {{{ticker}}}. The data should be in INR. The price should be a random number between 50 and 8000. The change should be a random fluctuation between -5% and +5% of the price. If you do not recognize the ticker, generate plausible data for a fictional company with that ticker.`,
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+    ],
+  },
 });
 
 const chartDataPrompt = ai.definePrompt({
@@ -72,6 +80,14 @@ const chartDataPrompt = ai.definePrompt({
 - The next 10 data points should be predicted prices ('prediction'). The prediction should start from the last historical price and show plausible future fluctuations.
 - The 'price' and 'prediction' values should overlap for the first 6 months.
 `,
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+    ],
+  },
 });
 
 
@@ -80,6 +96,14 @@ const stockOpinionPrompt = ai.definePrompt({
   input: {schema: StockOpinionInputSchema},
   output: {schema: StockOpinionOutputSchema},
   prompt: `You are a financial analyst. Provide a concise, one-paragraph financial opinion for {{{name}}} ({{{ticker}}}). Start with a disclaimer: "Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research." Then, briefly mention its potential for growth and any challenges it might face.`,
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+    ],
+  },
 });
 
 // --- AI Flows ---
