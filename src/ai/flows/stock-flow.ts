@@ -93,12 +93,11 @@ const chartDataPrompt = ai.definePrompt({
   prompt: `You are a financial data provider. For the stock "{{ticker}}" with a current price of {{price}} INR, generate a time-series chart data for all 12 months of a year.
 - The data must be an array of 12 objects, one for each month from "Jan" to "Dec".
 - Let the current month be the 7th month (July).
-- For each month up to and including the current month (Jan to Jul), generate a historical "price".
-- For each month after the current month (Aug to Dec), generate a "prediction".
+- For each month up to and including the current month (Jan to Jul), generate a historical "price" and a "prediction". The "prediction" represents what an AI might have predicted for that past month.
+- For each month after the current month (Aug to Dec), generate only a "prediction".
 - CRITICAL: The "price" for the current month (July) MUST be exactly {{price}}.
 - The historical prices should show a plausible trend leading up to the current price.
-- The future predictions should show a plausible trend starting from the current price.
-- Each object should have a "date" and EITHER a "price" or a "prediction", but not both.`,
+- The predictions should show a plausible trend for the entire year. Predictions for past months can deviate slightly from the actual price.`,
   config: {
     safetySettings: [
       {
@@ -159,17 +158,19 @@ const generateMockChartData = (price: number): ChartData[] => {
 
     let historicalPrice = price / (1 + (Math.random() * 0.1 - 0.05)); // Start from a price a bit lower
     
-    // Generate historical data
+    // Generate historical data with predictions
     for (let i = 0; i < currentMonthIndex; i++) {
       historicalPrice *= (1 + (Math.random() * 0.1 - 0.045));
-      data.push({ date: months[i], price: parseFloat(historicalPrice.toFixed(2)) });
+      const prediction = historicalPrice * (1 + (Math.random() * 0.1 - 0.05));
+      data.push({ date: months[i], price: parseFloat(historicalPrice.toFixed(2)), prediction: parseFloat(prediction.toFixed(2)) });
     }
 
-    // Set current month's price exactly
-    data.push({ date: months[currentMonthIndex], price: parseFloat(price.toFixed(2)) });
+    // Set current month's price exactly and add a prediction
+    const currentPrediction = price * (1 + (Math.random() * 0.1 - 0.05));
+    data.push({ date: months[currentMonthIndex], price: parseFloat(price.toFixed(2)), prediction: parseFloat(currentPrediction.toFixed(2)) });
 
-    let predictionPrice = price; // Start predictions from the exact price
-    // Generate predicted data
+    let predictionPrice = price; // Start future predictions from the exact price
+    // Generate future predicted data
     for (let i = currentMonthIndex + 1; i < 12; i++) {
       predictionPrice *= (1 + (Math.random() * 0.1 - 0.04)); // Slightly positive trend for prediction
       data.push({ date: months[i], prediction: parseFloat(predictionPrice.toFixed(2)) });
