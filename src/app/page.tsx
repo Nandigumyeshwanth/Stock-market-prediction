@@ -71,55 +71,59 @@ function Dashboard() {
 
   const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
-    
+  
+    // Always update the selected ticker and scroll
     setSelectedTicker(upperTicker);
-    setStockToAdd(null);
+    setStockToAdd(null); // Clear any pending additions
   
     if (graphCardRef.current) {
-        graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   
+    // If we don't have data for this ticker, fetch it.
     if (!stockDetails[upperTicker]) {
       setIsGraphLoading(true);
       try {
-          const dataArray = await getStockData({ tickers: [upperTicker] });
-    
-          if (!dataArray || dataArray.length === 0) {
-            toast({
-                title: "Data Not Found",
-                description: `Could not load data for ${upperTicker}. The API may be busy or the ticker may not be supported. Please try again shortly.`,
-                variant: "destructive",
-            });
-            setIsGraphLoading(false);
-            return;
-          }
-          const data = dataArray[0];
-    
-          setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
-          
-          const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
-          if (!stockExistsInWatchlist) {
-              setStockToAdd(data.stock);
-          }
-    
-      } catch (error) {
-          console.error(`Failed to load stock details for ${upperTicker}:`, error);
+        const dataArray = await getStockData({ tickers: [upperTicker] });
+  
+        if (!dataArray || dataArray.length === 0) {
           toast({
-              title: "Error",
-              description: `An unexpected error occurred while loading data for ${upperTicker}.`,
-              variant: "destructive",
+            title: "Data Not Found",
+            description: `Could not load data for ${upperTicker}. Please try again shortly.`,
+            variant: "destructive",
           });
-      } finally {
           setIsGraphLoading(false);
-      }
-    } else {
+          return;
+        }
+        const data = dataArray[0];
+  
+        setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
+        
+        // After fetching, check if it's in the watchlist to prompt the user
         const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
         if (!stockExistsInWatchlist) {
-            const existingData = stockDetails[upperTicker];
-            if (existingData) {
-                setStockToAdd(existingData.stock);
-            }
+            setStockToAdd(data.stock);
         }
+  
+      } catch (error) {
+        console.error(`Failed to load stock details for ${upperTicker}:`, error);
+        toast({
+          title: "Error",
+          description: `An unexpected error occurred while loading data for ${upperTicker}.`,
+          variant: "destructive",
+        });
+      } finally {
+        setIsGraphLoading(false);
+      }
+    } else {
+      // If we *do* have the data, check if we need to prompt to add to watchlist
+      const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
+      if (!stockExistsInWatchlist) {
+        const existingData = stockDetails[upperTicker];
+        if (existingData) {
+          setStockToAdd(existingData.stock);
+        }
+      }
     }
   }, [stockDetails, toast, watchlist]);
 
@@ -247,7 +251,7 @@ function Dashboard() {
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isGraphLoading && !currentChartData.length ? (
+           {isGraphLoading && currentChartData.length === 0 ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
@@ -419,3 +423,5 @@ function DashboardSkeleton() {
     </MainLayout>
   );
 }
+
+    
