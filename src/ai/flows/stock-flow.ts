@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview This file defines the AI flow for fetching and generating stock data.
@@ -109,13 +110,14 @@ const stockOpinionPrompt = ai.definePrompt({
 
 // --- Fallback Data Generation ---
 const getStockInfoFromRealData = (ticker: string): Stock => {
-    const stock = REAL_STOCK_DATA[ticker];
+    const upperTicker = ticker.toUpperCase();
+    const stock = REAL_STOCK_DATA[upperTicker];
     if (stock) {
         const price = stock.price;
         const changePercent = stock.changePercent;
         const change = price * (changePercent / 100);
         return {
-            ticker,
+            ticker: upperTicker,
             name: stock.name,
             price,
             change,
@@ -127,7 +129,7 @@ const getStockInfoFromRealData = (ticker: string): Stock => {
     const changePercent = (Math.random() * 10) - 5;
     const change = price * (changePercent / 100);
     return {
-        ticker,
+        ticker: upperTicker,
         name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Fictional Inc.`,
         price,
         change,
