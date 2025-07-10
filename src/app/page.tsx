@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { MainLayout } from "@/components/main-layout";
-import type { Index, Stock, ChartData } from "@/lib/types";
+import type { Stock, ChartData } from "@/lib/types";
 import { ArrowDownRight, ArrowUpRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -28,25 +28,19 @@ type StockData = {
   chartData: ChartData[];
 };
 
-const indices: Index[] = [
-  { name: "NIFTY 50", value: "23,537.85", change: "+66.70", changePercent: 0.28 },
-  { name: "BSE SENSEX", value: "77,337.59", change: "+131.18", changePercent: 0.17 },
-  { name: "NIFTY BANK", value: "51,703.95", change: "+385.20", changePercent: 0.75 },
-];
-
-const initialWatchlist: Stock[] = [
-    { ticker: "RELIANCE", name: "Reliance Industries Ltd.", price: 0, change: 0, changePercent: 0 },
-    { ticker: "HDFCBANK", name: "HDFC Bank Ltd.", price: 0, change: 0, changePercent: 0 },
-    { ticker: "TCS", name: "Tata Consultancy Services Ltd.", price: 0, change: 0, changePercent: 0 },
-    { ticker: "BHARTIARTL", name: "Bharti Airtel Ltd.", price: 0, change: 0, changePercent: 0 },
-    { ticker: "ICICIBANK", name: "ICICI Bank Ltd.", price: 0, change: 0, changePercent: 0 },
+const initialWatchlistTickers: string[] = [
+    "RELIANCE",
+    "HDFCBANK",
+    "TCS",
+    "BHARTIARTL",
+    "ICICIBANK",
 ];
 
 type StockDetailsState = StockData;
 
 function Dashboard() {
   const searchParams = useSearchParams();
-  const [watchlist, setWatchlist] = useState<Stock[]>(initialWatchlist);
+  const [watchlist, setWatchlist] = useState<Stock[]>([]);
   const [stockDetails, setStockDetails] = useState<Record<string, StockDetailsState>>({});
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [stockToAdd, setStockToAdd] = useState<Stock | null>(null);
@@ -81,9 +75,8 @@ function Dashboard() {
   const chartDomain = getChartDomain(currentChartData);
 
   const handleStockSelection = useCallback(async (ticker: string) => {
-    const upperTicker = ticker.toUpperCase();
-    
-    // Always update the selected ticker first to trigger UI changes.
+    const upperTicker = ticker.toUpperCase().replace(/\s/g, '');
+
     setSelectedTicker(upperTicker);
     setStockToAdd(null);
   
@@ -91,8 +84,7 @@ function Dashboard() {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   
-    // If we already have the data, we don't need to fetch it again.
-    // The graph will update because `selectedTicker` has changed.
+    // If data already exists, we don't need to fetch. The UI will update from the state change.
     if (stockDetails[upperTicker]) {
       return;
     }
@@ -155,9 +147,8 @@ function Dashboard() {
 
       setIsGraphLoading(true);
 
-      const tickers = initialWatchlist.map(s => s.ticker);
       try {
-        const dataArray = await getStockData({ tickers });
+        const dataArray = await getStockData({ tickers: initialWatchlistTickers });
 
         if (!dataArray || dataArray.length === 0) {
           throw new Error("Initial watchlist data could not be loaded.");
@@ -167,7 +158,8 @@ function Dashboard() {
         const newWatchlist: Stock[] = [];
 
         dataArray.forEach(data => {
-          newDetails[data.stock.ticker] = data;
+          const ticker = data.stock.ticker;
+          newDetails[ticker] = data;
           newWatchlist.push(data.stock);
         });
         
@@ -196,7 +188,7 @@ function Dashboard() {
   }, [initialLoadComplete, toast]);
   
   useEffect(() => {
-    const searchTicker = searchParams.get('ticker')?.toUpperCase();
+    const searchTicker = searchParams.get('ticker')?.toUpperCase().replace(/\s/g, '');
     if (searchTicker && initialLoadComplete && searchTicker !== selectedTicker) {
       handleStockSelection(searchTicker);
     }
@@ -211,27 +203,36 @@ function Dashboard() {
         </div>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {indices.map((index) => (
-            <Card key={index.name} className="border-border/60 hover:border-primary/80 transition-colors duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{index.name}</CardTitle>
-                {index.changePercent >= 0 ? (
-                  <ArrowUpRight className="h-4 w-4 text-green-500" />
-                ) : (
-                  <ArrowDownRight className="h-4 w-4 text-red-500" />
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{index.value}</div>
-                <p className={cn(
-                  "text-xs font-semibold",
-                  index.changePercent >= 0 ? "text-green-500" : "text-red-500"
-                )}>
-                  {index.change} ({index.changePercent.toFixed(2)}%)
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+          <Card className="border-border/60 hover:border-primary/80 transition-colors duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">NIFTY 50</CardTitle>
+              <ArrowUpRight className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">23,537.85</div>
+              <p className="text-xs font-semibold text-green-500">+66.70 (0.28%)</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60 hover:border-primary/80 transition-colors duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">BSE SENSEX</CardTitle>
+              <ArrowUpRight className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">77,337.59</div>
+              <p className="text-xs font-semibold text-green-500">+131.18 (0.17%)</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60 hover:border-primary/80 transition-colors duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">NIFTY BANK</CardTitle>
+              <ArrowUpRight className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">51,703.95</div>
+              <p className="text-xs font-semibold text-green-500">+385.20 (0.75%)</p>
+            </CardContent>
+          </Card>
         </div>
 
         <Card ref={graphCardRef} className="border-border/60">
@@ -245,7 +246,7 @@ function Dashboard() {
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isGraphLoading && currentChartData.length === 0 ? (
+           {isGraphLoading ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
@@ -389,7 +390,6 @@ function DashboardSkeleton() {
         <Card className="border-border/60">
           <CardHeader>
             <Skeleton className="h-8 w-1/2 rounded-md" />
-            <Skeleton className="h-4 w-1/3 mt-1 rounded-md" />
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
             <div className="h-full w-full flex items-center justify-center">

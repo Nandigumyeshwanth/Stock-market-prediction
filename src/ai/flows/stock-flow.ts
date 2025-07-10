@@ -7,7 +7,7 @@
  * if the AI service fails, ensuring the application remains functional.
  */
 import {ai} from '@/ai/genkit';
-import type {ChartData, Stock} from '@/lib/types';
+import type { ChartData, Stock} from '@/lib/types';
 import {z} from 'genkit';
 import { REAL_STOCK_DATA } from '@/lib/real-stock-data';
 
@@ -25,19 +25,6 @@ const StockOutputSchema = z.object({
     .describe('The current trading price of the stock in INR.'),
   change: z.number().describe('The change in the stock price from the previous close.'),
   changePercent: z.number().describe('The percentage change in the stock price.'),
-});
-
-const StockOpinionInputSchema = z.object({
-  ticker: z.string().describe('The stock ticker symbol.'),
-  name: z.string().describe('The full name of the company.'),
-});
-
-const StockOpinionOutputSchema = z.object({
-  recommendation: z
-    .string()
-    .describe(
-      'A clear recommendation on whether to buy the stock or not. For example: "You should consider buying this stock." or "It may be better to hold off on this stock for now."'
-    ),
 });
 
 
@@ -93,20 +80,6 @@ const chartDataPrompt = ai.definePrompt({
 });
 
 
-const stockOpinionPrompt = ai.definePrompt({
-  name: 'stockOpinionPrompt',
-  input: {schema: StockOpinionInputSchema},
-  output: {schema: StockOpinionOutputSchema},
-  prompt: `You are a financial analyst. Based on the company {{{name}}} ({{{ticker}}}), provide a clear and concise recommendation on whether to buy the stock or not.`,
-  config: {
-    safetySettings: [
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
-    ],
-  },
-});
 
 // --- Fallback Data Generation ---
 const getStockInfoFromRealData = (ticker: string): Stock => {
@@ -201,36 +174,10 @@ const getStockDataFlow = ai.defineFlow(
   }
 );
 
-
-const getStockOpinionFlow = ai.defineFlow(
-  {
-    name: 'getStockOpinionFlow',
-    inputSchema: StockOpinionInputSchema,
-    outputSchema: StockOpinionOutputSchema,
-  },
-  async (input) => {
-    try {
-        const {output} = await stockOpinionPrompt(input);
-        if (!output) {
-          throw new Error("No opinion generated");
-        }
-        return output;
-    } catch (error) {
-        console.error(`Failed to get opinion for ${input.ticker}:`, error);
-        return { recommendation: "AI opinion is currently unavailable for this stock." };
-    }
-  }
-);
-
-
 // --- Exported Functions ---
 
 export async function getStockData(input: { tickers: string[] }): Promise<StockData[]> {
   const results = await getStockDataFlow(input);
   // Ensure we always return a valid array, even if the flow somehow fails.
   return results || [];
-}
-
-export async function getStockOpinion(input: {ticker: string; name: string}): Promise<{recommendation: string}> {
-  return getStockOpinionFlow(input);
 }
