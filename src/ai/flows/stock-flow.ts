@@ -61,7 +61,7 @@ const stockInfoPrompt = ai.definePrompt({
   output: {schema: StockOutputSchema},
   prompt: `You are a financial data provider. For the stock ticker "{{ticker}}", generate realistic but fictional data in INR.
 - The company name should be plausible for the given ticker.
-- The price should be a random number between 100 and 1000.
+- The price should be a random number between 500 and 1500.
 - The change should be a random fluctuation between -5% and +5% of the price.
 If you do not recognize the ticker, generate plausible data for a fictional company with that ticker.`,
   config: {
@@ -139,7 +139,7 @@ const stockOpinionPrompt = ai.definePrompt({
 // --- Fallback Data Generation ---
 
 const generateMockStockInfo = (ticker: string): Stock => {
-  const price = Math.random() * (1000 - 100) + 100;
+  const price = Math.random() * (1500 - 500) + 500;
   const changePercent = (Math.random() * 10) - 5; // -5% to +5%
   const change = price * (changePercent / 100);
   return {
