@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 
 const loginSchema = z.object({
@@ -44,22 +46,46 @@ export default function LoginPage() {
     },
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    // In a real app, you would validate credentials against a backend.
-    // For this prototype, we'll just simulate a successful login.
-    console.log("Logging in user:", data);
-    
-    // Simulate creating a session by storing a token in localStorage.
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("authToken", `fake-token-for-${data.email}`);
+  const onSubmit = async (data: LoginFormValues) => {
+    try {
+      await signInWithEmailAndPassword(auth, data.email, data.password);
+      console.log("Logging in user:", data.email);
+      
+      // We don't need localStorage anymore as Firebase handles the session
+      toast({
+        title: "Login Successful",
+        description: `Welcome back!`,
+      });
+      router.push("/");
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      toast({
+        title: "Login Failed",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
     }
-
-    toast({
-      title: "Login Successful",
-      description: `Welcome back!`,
-    });
-    // Redirect to the dashboard page after login.
-    router.push("/");
+  };
+  
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      console.log("Logged in with Google:", user.email);
+      toast({
+        title: "Login Successful",
+        description: `Welcome, ${user.displayName}!`,
+      });
+      router.push("/");
+    } catch (error: any) {
+      console.error("Google login failed:", error);
+      toast({
+        title: "Google Login Failed",
+        description: error.message || "Could not sign in with Google.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -109,6 +135,9 @@ export default function LoginPage() {
             />
             <Button type="submit" className="w-full">
               Login
+            </Button>
+            <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin}>
+              Login with Google
             </Button>
           </form>
         </Form>

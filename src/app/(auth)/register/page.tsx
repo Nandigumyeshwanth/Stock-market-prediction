@@ -24,6 +24,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { sendWelcomeEmail } from "@/ai/flows/send-email-flow";
+import { auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
+
 
 const registerSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
@@ -33,9 +36,6 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-// This will act as our "database" for this client-side example.
-// It will reset on page refresh.
-let registeredUsers: RegisterFormValues[] = [];
 
 export default function RegisterPage() {
   const { toast } = useToast();
@@ -51,32 +51,63 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: RegisterFormValues) => {
-    const userExists = registeredUsers.some(user => user.email === data.email);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      
+      await updateProfile(userCredential.user, { displayName: data.fullName });
 
-    if (userExists) {
+      console.log("Registering user:", data.email);
+      
+      try {
+        // Fire-and-forget the email simulation
+        sendWelcomeEmail({ fullName: data.fullName, email: data.email });
+      } catch (error) {
+        console.error("Failed to send welcome email:", error);
+      }
+
+      toast({
+          title: "Account Created!",
+          description: "You have successfully created an account.",
+      });
+      router.push("/login");
+
+    } catch (error: any) {
+        console.error("Registration failed:", error);
         toast({
             title: "Registration Failed",
-            description: "An account with this email already exists.",
+            description: error.message || "An unexpected error occurred.",
             variant: "destructive",
         });
-    } else {
-        console.log("Registering user:", data);
-        // Add user to our mock "database"
-        registeredUsers.push(data);
+    }
+  };
 
-        try {
-          // Fire-and-forget the email simulation
-          sendWelcomeEmail({ fullName: data.fullName, email: data.email });
-        } catch (error) {
-          console.error("Failed to send welcome email:", error);
-          // We don't block the user flow if the email fails.
-        }
+  const handleGoogleSignUp = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      console.log("Signed up with Google:", user.email);
+      
+      if (user.displayName && user.email) {
+          try {
+            sendWelcomeEmail({ fullName: user.displayName, email: user.email });
+          } catch (error) {
+            console.error("Failed to send welcome email:", error);
+          }
+      }
 
-        toast({
-            title: "Account Created!",
-            description: "You have successfully created an account.",
-        });
-        router.push("/login");
+      toast({
+        title: "Account Created!",
+        description: `Welcome, ${user.displayName}!`,
+      });
+      router.push("/"); 
+    } catch (error: any) {
+      console.error("Google sign-up failed:", error);
+      toast({
+        title: "Google Sign-up Failed",
+        description: error.message || "Could not sign up with Google.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -97,7 +128,6 @@ export default function RegisterPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Full name</FormLabel>
-
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
                   </FormControl>
@@ -133,6 +163,9 @@ export default function RegisterPage() {
             />
             <Button type="submit" className="w-full">
               Create an account
+            </Button>
+            <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignUp}>
+              Sign up with Google
             </Button>
           </form>
         </Form>

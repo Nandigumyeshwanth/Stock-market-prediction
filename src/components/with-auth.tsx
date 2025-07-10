@@ -1,9 +1,11 @@
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const withAuth = <P extends object>(WrappedComponent: React.ComponentType<P>) => {
   const AuthComponent = (props: P) => {
@@ -12,14 +14,17 @@ const withAuth = <P extends object>(WrappedComponent: React.ComponentType<P>) =>
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-      // Check for auth token in localStorage
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        setIsAuthenticated(true);
-      } else {
-        router.replace('/login');
-      }
-      setIsLoading(false);
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          setIsAuthenticated(true);
+        } else {
+          router.replace('/login');
+        }
+        setIsLoading(false);
+      });
+
+      // Cleanup subscription on unmount
+      return () => unsubscribe();
     }, [router]);
 
     if (isLoading) {
