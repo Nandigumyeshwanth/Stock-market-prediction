@@ -45,7 +45,7 @@ const ChartDataSchema = z.object({
 });
 
 const ChartDataOutputSchema = z.object({
-  chartData: z.array(ChartDataSchema).describe('An array of 10 data points for the stock chart, including 6 historical and 4 prediction points.'),
+  chartData: z.array(ChartDataSchema).describe('An array of 12 data points for the stock chart, showing predicted prices for each month from January to December.'),
 });
 
 type StockData = z.infer<typeof StockOutputSchema> & {
@@ -90,12 +90,11 @@ const chartDataPrompt = ai.definePrompt({
   name: 'chartDataPrompt',
   input: { schema: z.object({ ticker: z.string(), price: z.number() }) },
   output: { schema: ChartDataOutputSchema },
-  prompt: `You are a financial data provider. For the stock "{{ticker}}" with a current price of {{price}} INR, generate a time-series chart data for 10 consecutive months.
-- The data should be an array of 10 objects, each with a "date" (e.g., "Jan", "Feb") and either a "price" or "prediction" property.
-- The first 6 months are historical data. Their objects must have a "price" property. The historical prices should show plausible fluctuations.
-- CRITICAL: The 6th month's price MUST be exactly {{price}}.
-- The next 4 months are future predictions. Their objects must have a "prediction" property. The prediction should start from the last historical price and show a plausible future trend.
-- Ensure each object has EITHER a 'price' OR a 'prediction' key, but not both.`,
+  prompt: `You are a financial data provider. For the stock "{{ticker}}" with a current price of {{price}} INR, generate a time-series chart data of predicted prices for all 12 months of a year.
+- The data must be an array of 12 objects, one for each month from "Jan" to "Dec".
+- Each object must have a "date" property (e.g., "Jan", "Feb") and a "prediction" property. Do not use a "price" property.
+- CRITICAL: The first month's ("Jan") prediction MUST be exactly {{price}}.
+- The subsequent months' predictions should show a plausible future trend starting from the initial price.`,
   config: {
     safetySettings: [
       {
@@ -150,32 +149,19 @@ const generateMockStockInfo = (ticker: string): Stock => {
 };
 
 const generateMockChartData = (price: number): ChartData[] => {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const data: ChartData[] = [];
     
-    // Generate historical prices leading up to the final price
-    let historyPrices: number[] = [];
-    let tempPrice = price;
-    for (let i = 0; i < 5; i++) {
-        // Fluctuate backwards from the target price
-        tempPrice /= (1 + (Math.random() * 0.1 - 0.05));
-        historyPrices.unshift(parseFloat(tempPrice.toFixed(2)));
-    }
+    let currentPrice = price; // Start predictions from the exact price
 
-    // Add the historical data to the main data array
-    for (let i = 0; i < 5; i++) {
-        data.push({ date: months[i], price: historyPrices[i] });
-    }
-
-    // Ensure the 6th month's price is exactly the provided price
-    data.push({ date: months[5], price: parseFloat(price.toFixed(2)) });
-    
-    let currentPrice = price; // Start predictions from the exact last historical price
-
-    // Predicted data
-    for (let i = 6; i < 10; i++) {
-        currentPrice *= (1 + (Math.random() * 0.1 - 0.04)); // Slightly positive trend for prediction
-        data.push({ date: months[i], prediction: parseFloat(currentPrice.toFixed(2)) });
+    // Generate predicted data for all 12 months
+    for (let i = 0; i < 12; i++) {
+        if (i === 0) {
+            data.push({ date: months[i], prediction: parseFloat(currentPrice.toFixed(2)) });
+        } else {
+            currentPrice *= (1 + (Math.random() * 0.1 - 0.04)); // Slightly positive trend for prediction
+            data.push({ date: months[i], prediction: parseFloat(currentPrice.toFixed(2)) });
+        }
     }
     return data;
 };
