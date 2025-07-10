@@ -70,11 +70,11 @@ function Dashboard() {
   };
 
   const handleStockSelection = useCallback(async (ticker: string) => {
-    const upperTicker = ticker.toUpperCase().replace(/\s/g, '');
+    const upperTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
     
+    // Always update the selected ticker and scroll to the graph
+    setSelectedTicker(upperTicker);
     setStockToAdd(null);
-    setSelectedTicker(upperTicker); // Always update the selected ticker
-
     if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -113,6 +113,15 @@ function Dashboard() {
       } finally {
           setIsGraphLoading(false);
       }
+    } else {
+        // Data is already loaded, check if we need to show the "Add to watchlist" prompt
+        const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
+        if (!stockExistsInWatchlist) {
+            const existingData = stockDetails[upperTicker];
+            if (existingData) {
+                setStockToAdd(existingData.stock);
+            }
+        }
     }
   }, [stockDetails, toast, watchlist]);
 
