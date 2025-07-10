@@ -152,17 +152,25 @@ const generateMockStockInfo = (ticker: string): Stock => {
 const generateMockChartData = (price: number): ChartData[] => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
     const data: ChartData[] = [];
-    let currentPrice = price * (1 - (Math.random() * 0.2 - 0.1)); // Start history 10% above/below current price
-
-    // Historical data
+    
+    // Generate historical prices leading up to the final price
+    let historyPrices: number[] = [];
+    let tempPrice = price;
     for (let i = 0; i < 5; i++) {
-        data.push({ date: months[i], price: parseFloat(currentPrice.toFixed(2)) });
-        currentPrice *= (1 + (Math.random() * 0.1 - 0.05)); // Fluctuate by -5% to +5%
+        // Fluctuate backwards from the target price
+        tempPrice /= (1 + (Math.random() * 0.1 - 0.05));
+        historyPrices.unshift(parseFloat(tempPrice.toFixed(2)));
     }
-    // Ensure last historical point IS the actual price
+
+    // Add the historical data to the main data array
+    for (let i = 0; i < 5; i++) {
+        data.push({ date: months[i], price: historyPrices[i] });
+    }
+
+    // Ensure the 6th month's price is exactly the provided price
     data.push({ date: months[5], price: parseFloat(price.toFixed(2)) });
     
-    currentPrice = price; // Reset for prediction start
+    let currentPrice = price; // Start predictions from the exact last historical price
 
     // Predicted data
     for (let i = 6; i < 10; i++) {
