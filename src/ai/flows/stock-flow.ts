@@ -83,7 +83,7 @@ const chartDataPrompt = ai.definePrompt({
 
 // --- Fallback Data Generation ---
 const getStockInfoFromRealData = (ticker: string): Stock => {
-    const lookupTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
+    const lookupTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : match === ' ' ? '' : ''));
     const stock = REAL_STOCK_DATA[lookupTicker];
     if (stock) {
         const price = stock.price;
@@ -143,41 +143,49 @@ const generateMockChartData = (price: number): ChartData[] => {
 
 // --- AI Flows ---
 
-const getStockDataFlow = ai.defineFlow(
-  {
-    name: 'getStockDataFlow',
-    inputSchema: z.object({tickers: z.array(z.string())}),
-    outputSchema: z.array(z.object({stock: StockOutputSchema, chartData: z.array(ChartDataSchema)})),
-  },
-  async ({tickers}) => {
-    const stockDataPromises = tickers.map(async (ticker) => {
-      try {
-        // Get base stock info from our real data list
-        const stockInfo = getStockInfoFromRealData(ticker);
-
-        const {output: chartDataObj} = await chartDataPrompt({ticker, price: stockInfo.price});
-        if (!chartDataObj || !chartDataObj.chartData || chartDataObj.chartData.length === 0) throw new Error('Failed to get chart data');
-        
-        return { stock: stockInfo, chartData: chartDataObj.chartData };
-      } catch (error) {
-        console.error(`AI generation failed for ${ticker}, using mock data. Error:`, error);
-        const mockStockInfo = getStockInfoFromRealData(ticker);
-        const mockChartData = generateMockChartData(mockStockInfo.price);
-        return {
-          stock: mockStockInfo,
-          chartData: mockChartData,
-        };
-      }
-    });
-
-    return Promise.all(stockDataPromises);
-  }
+const getStockInfoFlow = ai.defineFlow(
+    {
+        name: 'getStockInfoFlow',
+        inputSchema: StockInputSchema,
+        outputSchema: StockOutputSchema.nullable(),
+    },
+    async ({ ticker }) => {
+        try {
+            return getStockInfoFromRealData(ticker);
+        } catch (error) {
+            console.error(`Failed to get info for ${ticker}:`, error);
+            return null;
+        }
+    }
 );
+
+const getStockChartDataFlow = ai.defineFlow(
+    {
+        name: 'getStockChartDataFlow',
+        inputSchema: z.object({ ticker: z.string(), price: z.number() }),
+        outputSchema: z.array(ChartDataSchema),
+    },
+    async ({ ticker, price }) => {
+        try {
+            const { output } = await chartDataPrompt({ ticker, price });
+            if (!output || !output.chartData) {
+              throw new Error('Failed to get chart data from AI');
+            }
+            return output.chartData;
+        } catch (error) {
+            console.error(`AI chart generation failed for ${ticker}, using mock data. Error:`, error);
+            return generateMockChartData(price);
+        }
+    }
+);
+
 
 // --- Exported Functions ---
 
-export async function getStockData(input: { tickers: string[] }): Promise<StockData[]> {
-  const results = await getStockDataFlow(input);
-  // Ensure we always return a valid array, even if the flow somehow fails.
-  return results || [];
+export async function getStockInfo(input: { ticker: string }): Promise<Stock | null> {
+  return getStockInfoFlow(input);
+}
+
+export async function getStockChartData(input: { ticker: string; price: number }): Promise<ChartData[]> {
+    return getStockChartDataFlow(input);
 }

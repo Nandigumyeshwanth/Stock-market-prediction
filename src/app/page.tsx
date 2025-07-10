@@ -1,8 +1,8 @@
 
 "use client";
-import { Suspense, useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getStockData } from "@/ai/flows/stock-flow";
+import { getStockChartData, getStockInfo } from "@/ai/flows/stock-flow";
 import { Button } from "@/components/ui/button";
 import withAuth from "@/components/with-auth";
 
@@ -37,7 +37,7 @@ const initialWatchlistTickers: string[] = [
     "ICICIBANK",
 ];
 
-type StockDetailsState = StockData;
+type StockDetailsState = Partial<StockData>;
 
 function Dashboard() {
   const searchParams = useSearchParams();
@@ -50,8 +50,8 @@ function Dashboard() {
   const graphCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const getChartDomain = (data: StockData['chartData']): [number, number] => {
-    if (!data || data.length === 0) {
+  const getChartDomain = (data: StockData['chartData'] = []): [number, number] => {
+    if (data.length === 0) {
       return [0, 100]; // Default domain if no data
     }
     
@@ -78,6 +78,7 @@ function Dashboard() {
   const confirmAddToWatchlist = () => {
     if (stockToAdd) {
         setWatchlist(prev => [stockToAdd, ...prev]);
+        setStockDetails(prev => ({...prev, [stockToAdd.ticker]: { stock: stockToAdd }}));
         setStockToAdd(null);
         toast({
             title: "Stock Added",
@@ -89,38 +90,71 @@ function Dashboard() {
   const cancelAddToWatchlist = () => {
     setStockToAdd(null);
   };
+  
+  const handleStockSelection = useCallback(async (ticker: string) => {
+    const upperTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
+    setSelectedTicker(upperTicker);
+
+    if (graphCardRef.current) {
+        graphCardRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (!stockDetails[upperTicker]?.chartData) {
+        setIsGraphLoading(true);
+        try {
+            let stockInfo = stockDetails[upperTicker]?.stock;
+            if (!stockInfo) {
+                stockInfo = await getStockInfo({ ticker: upperTicker });
+                if (!stockInfo) throw new Error("Stock info not found.");
+                setStockDetails(prev => ({ ...prev, [upperTicker]: { ...prev[upperTicker], stock: stockInfo } }));
+            }
+            
+            const chartData = await getStockChartData({ ticker: upperTicker, price: stockInfo.price });
+            setStockDetails(prev => ({ ...prev, [upperTicker]: { ...prev[upperTicker], chartData } }));
+
+            if (!watchlist.some(s => s.ticker === upperTicker)) {
+                setStockToAdd(stockInfo);
+            }
+
+        } catch (error) {
+            console.error(`Failed to fetch chart data for ${upperTicker}:`, error);
+            toast({
+                title: "API Error",
+                description: `Could not fetch chart data for ${upperTicker}.`,
+                variant: "destructive",
+            });
+        } finally {
+            setIsGraphLoading(false);
+        }
+    }
+  }, [stockDetails, toast, watchlist]);
 
 
   useEffect(() => {
     const loadInitialData = async () => {
       if (initialLoadComplete) return;
 
-      setIsGraphLoading(true);
-
       try {
-        const dataArray = await getStockData({ tickers: initialWatchlistTickers });
-
-        if (!dataArray || dataArray.length === 0) {
-          throw new Error("Initial watchlist data could not be loaded.");
-        }
+        const stockInfos = await Promise.all(
+          initialWatchlistTickers.map(ticker => getStockInfo({ ticker }))
+        );
+        
+        const validStocks = stockInfos.filter((s): s is Stock => s !== null);
 
         const newDetails: Record<string, StockDetailsState> = {};
-        const newWatchlist: Stock[] = [];
-
-        dataArray.forEach(data => {
-          const ticker = data.stock.ticker;
-          newDetails[ticker] = data;
-          newWatchlist.push(data.stock);
+        validStocks.forEach(stock => {
+            newDetails[stock.ticker] = { stock };
         });
         
         setStockDetails(newDetails);
-        setWatchlist(newWatchlist);
+        setWatchlist(validStocks);
         
-        const firstTicker = newWatchlist[0]?.ticker;
+        const firstTicker = validStocks[0]?.ticker;
         if (firstTicker) {
-            setSelectedTicker(firstTicker);
+            handleStockSelection(firstTicker);
+        } else {
+            setIsGraphLoading(false);
         }
-
       } catch (error) {
         console.error("Failed to load initial watchlist:", error);
         toast({
@@ -128,57 +162,21 @@ function Dashboard() {
           description: "Could not load initial watchlist data. Please refresh.",
           variant: "destructive",
         });
-      } finally {
         setIsGraphLoading(false);
+      } finally {
         setInitialLoadComplete(true);
       }
     };
 
     loadInitialData();
-  }, [initialLoadComplete, toast]);
+  }, [initialLoadComplete, toast, handleStockSelection]);
   
     useEffect(() => {
     const searchTicker = searchParams.get('ticker')?.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
     if (searchTicker && initialLoadComplete && searchTicker !== selectedTicker) {
-      const handleStockSelection = async (ticker: string) => {
-        const upperTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
-
-        if (!stockDetails[upperTicker]) {
-          try {
-            setIsGraphLoading(true);
-            const dataArray = await getStockData({ tickers: [upperTicker] });
-            if (dataArray && dataArray.length > 0) {
-              const newStockData = dataArray[0];
-              setStockDetails(prev => ({...prev, [upperTicker]: newStockData}));
-              
-              if (!watchlist.some(s => s.ticker === upperTicker)) {
-                setStockToAdd(newStockData.stock);
-              }
-            } else {
-              throw new Error("Stock data not found.");
-            }
-          } catch (error) {
-            console.error(`Failed to fetch data for ${upperTicker}:`, error);
-            toast({
-              title: "API Error",
-              description: `Could not fetch data for ${upperTicker}.`,
-              variant: "destructive",
-            });
-          } finally {
-            setIsGraphLoading(false);
-          }
-        }
-        
-        setSelectedTicker(upperTicker);
-
-        if (graphCardRef.current) {
-          graphCardRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      };
-      
       handleStockSelection(searchTicker);
     }
-  }, [searchParams, initialLoadComplete, selectedTicker, stockDetails, toast, watchlist]);
+  }, [searchParams, initialLoadComplete, selectedTicker, handleStockSelection]);
 
 
   return (
@@ -231,7 +229,7 @@ function Dashboard() {
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isGraphLoading && currentChartData.length === 0 ? (
+           {isGraphLoading || currentChartData.length === 0 ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
@@ -313,28 +311,38 @@ function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {watchlist.map((stock) => (
+                {watchlist.length > 0 ? watchlist.map((stock) => (
                   <TableRow 
                     key={stock.ticker}
-                    className="transition-colors border-border/20"
+                    className="transition-colors border-border/20 hover:bg-muted/50 cursor-pointer"
+                    onClick={() => handleStockSelection(stock.ticker)}
                   >
                     <TableCell>
                       <Badge variant="secondary" className="font-mono">{stock.ticker}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">{stock.name}</TableCell>
                     <TableCell className="text-right font-medium">
-                        {stock.price > 0 ? `₹${stock.price.toFixed(2)}` : <Skeleton className="h-5 w-20 float-right rounded-md" />}
+                        {`₹${stock.price.toFixed(2)}`}
                     </TableCell>
                     <TableCell
                       className={cn(
                         "text-right font-semibold",
-                         stock.price === 0 ? "text-muted-foreground" : stock.changePercent >= 0 ? "text-green-500" : "text-red-500"
+                         stock.changePercent >= 0 ? "text-green-500" : "text-red-500"
                       )}
                     >
-                      {stock.price > 0 ? `${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)` : <Skeleton className="h-5 w-24 float-right rounded-md" />}
+                      {`${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)`}
                     </TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i} className="border-border/20">
+                      <TableCell><Skeleton className="h-5 w-16 rounded-md" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-48 rounded-md" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-5 w-20 float-right rounded-md" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-5 w-24 float-right rounded-md" /></TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
