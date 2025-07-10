@@ -9,7 +9,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const WelcomeEmailInputSchema = z.object({
+const WelcomeEmailInputSchema = z.object({
   fullName: z.string().describe('The full name of the user.'),
   email: z.string().email().describe('The email address of the user.'),
 });
