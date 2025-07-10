@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { sendWelcomeEmail } from "@/ai/flows/send-email-flow";
 
 const registerSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
@@ -49,7 +50,7 @@ export default function RegisterPage() {
     },
   });
 
-  const onSubmit = (data: RegisterFormValues) => {
+  const onSubmit = async (data: RegisterFormValues) => {
     const userExists = registeredUsers.some(user => user.email === data.email);
 
     if (userExists) {
@@ -62,6 +63,15 @@ export default function RegisterPage() {
         console.log("Registering user:", data);
         // Add user to our mock "database"
         registeredUsers.push(data);
+
+        try {
+          // Fire-and-forget the email simulation
+          sendWelcomeEmail({ fullName: data.fullName, email: data.email });
+        } catch (error) {
+          console.error("Failed to send welcome email:", error);
+          // We don't block the user flow if the email fails.
+        }
+
         toast({
             title: "Account Created!",
             description: "You have successfully created an account.",
