@@ -23,8 +23,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 
 const registerSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
@@ -50,33 +48,6 @@ export default function RegisterPage() {
       password: "",
     },
   });
-
-  const handleGoogleSignUp = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      console.log("Signed up with Google:", user);
-      
-       if (typeof window !== 'undefined') {
-        localStorage.setItem("authToken", await user.getIdToken());
-      }
-      toast({
-        title: "Account Created",
-        description: `Welcome, ${user.displayName}!`,
-      });
-      router.push("/");
-
-    } catch (error) {
-      console.error("Google sign up error:", error);
-       toast({
-        title: "Sign Up Failed",
-        description: "Could not sign up with Google. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
 
   const onSubmit = (data: RegisterFormValues) => {
     const userExists = registeredUsers.some(user => user.email === data.email);
@@ -152,9 +123,6 @@ export default function RegisterPage() {
             />
             <Button type="submit" className="w-full">
               Create an account
-            </Button>
-            <Button variant="outline" className="w-full" type="button" onClick={handleGoogleSignUp}>
-              Sign up with Google
             </Button>
           </form>
         </Form>
