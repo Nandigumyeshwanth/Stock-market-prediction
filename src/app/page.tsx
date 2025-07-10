@@ -201,15 +201,15 @@ function Dashboard() {
     <MainLayout>
       <div className="flex flex-col gap-8">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
             <p className="text-muted-foreground">Welcome to your Infinytix dashboard.</p>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {indices.map((index) => (
-            <Card key={index.name} className="border-border/60">
+            <Card key={index.name} className="border-border/20 shadow-sm hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{index.name}</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">{index.name}</CardTitle>
                 {index.changePercent >= 0 ? (
                   <ArrowUpRight className="h-4 w-4 text-green-500" />
                 ) : (
@@ -217,9 +217,9 @@ function Dashboard() {
                 )}
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{index.value}</div>
+                <div className="text-2xl font-bold text-foreground">{index.value}</div>
                 <p className={cn(
-                  "text-xs",
+                  "text-xs font-semibold",
                   index.changePercent >= 0 ? "text-green-500" : "text-red-500"
                 )}>
                   {index.change} ({index.changePercent.toFixed(2)}%)
@@ -229,13 +229,13 @@ function Dashboard() {
           ))}
         </div>
 
-        <Card ref={graphCardRef} className="border-border/60">
+        <Card ref={graphCardRef} className="border-border/20 shadow-sm">
           <CardHeader>
             {isGraphLoading && !selectedStock ? (
-                <Skeleton className="h-8 w-1/2 rounded-md" />
+                <Skeleton className="h-8 w-1/2 rounded-md bg-muted/50" />
             ) : (
                 <>
-                <CardTitle>{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
+                <CardTitle className="text-xl text-foreground">{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
                 <CardDescription>Historical price vs. AI-powered price prediction</CardDescription>
                 </>
             )}
@@ -251,31 +251,31 @@ function Dashboard() {
               <AreaChart data={currentChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8}/>
+                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.7}/>
                     <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorPrediction" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8}/>
+                    <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.4}/>
                     <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
                 <XAxis dataKey="date" />
                 <YAxis domain={chartDomain} tickFormatter={(value) => `₹${value.toFixed(0)}`} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="rounded-lg border bg-background p-2 shadow-sm">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex flex-col">
-                              <span className="text-[0.70rem] uppercase text-muted-foreground">Date</span>
-                              <span className="font-bold text-muted-foreground">{label}</span>
+                        <div className="rounded-lg border bg-card/80 backdrop-blur-sm p-2.5 shadow-lg">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            <div className="flex flex-col col-span-2 mb-1">
+                              <span className="text-xs uppercase text-muted-foreground">Date</span>
+                              <span className="font-bold text-foreground">{label}</span>
                             </div>
                             {payload.map((item) => (
                               item.value &&
                               <div key={item.dataKey} className="flex flex-col">
-                                <span className="text-[0.70rem] uppercase text-muted-foreground">{item.name}</span>
+                                <span className="text-xs uppercase" style={{color: item.color}}>{item.name}</span>
                                 <span className="font-bold" style={{color: item.color}}>₹{item.value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
                             ))}
@@ -287,8 +287,8 @@ function Dashboard() {
                   }}
                 />
                 <Legend />
-                <Area type="monotone" dataKey="price" name="Price" stroke="hsl(var(--chart-1))" fillOpacity={1} fill="url(#colorPrice)" />
-                <Area type="monotone" dataKey="prediction" name="Prediction" stroke="hsl(var(--chart-2))" fillOpacity={1} fill="url(#colorPrediction)" strokeDasharray="5 5"/>
+                <Area type="monotone" dataKey="price" name="Price" strokeWidth={2} stroke="hsl(var(--chart-1))" fillOpacity={1} fill="url(#colorPrice)" />
+                <Area type="monotone" dataKey="prediction" name="Prediction" strokeWidth={2} stroke="hsl(var(--chart-2))" fillOpacity={1} fill="url(#colorPrediction)" strokeDasharray="5 5"/>
               </AreaChart>
             </ResponsiveContainer>
             )}
@@ -296,9 +296,9 @@ function Dashboard() {
         </Card>
 
         {stockToAdd && (
-            <Card className="border-border/60 bg-secondary/30">
+            <Card className="border-border/20 bg-card/50">
                 <CardContent className="p-4 flex items-center justify-between">
-                    <p>Do you want to add <Badge variant="outline">{stockToAdd.ticker}</Badge> to the watchlist?</p>
+                    <div>Do you want to add <Badge variant="outline">{stockToAdd.ticker}</Badge> to the watchlist?</div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={cancelAddToWatchlist}>No</Button>
                         <Button size="sm" onClick={confirmAddToWatchlist}>Yes, Add</Button>
@@ -307,15 +307,15 @@ function Dashboard() {
             </Card>
         )}
 
-        <Card className="border-border/60">
+        <Card className="border-border/20 shadow-sm">
           <CardHeader>
-            <CardTitle>Watchlist</CardTitle>
+            <CardTitle className="text-xl">Watchlist</CardTitle>
             <CardDescription>Select a stock to view its detailed performance.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="border-border/30">
                   <TableHead>Ticker</TableHead>
                   <TableHead>Company Name</TableHead>
                   <TableHead className="text-right">Price</TableHead>
@@ -328,21 +328,22 @@ function Dashboard() {
                     key={stock.ticker}
                     onClick={() => handleStockSelection(stock.ticker)}
                     className={cn(
-                      "transition-colors",
-                      stock.price > 0 ? "cursor-pointer" : ""
+                      "transition-colors border-border/20",
+                      stock.price > 0 ? "cursor-pointer" : "",
+                      "data-[state=selected]:bg-muted/50"
                     )}
                     data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
                   >
                     <TableCell>
-                      <Badge variant="outline">{stock.ticker}</Badge>
+                      <Badge variant="secondary" className="font-mono">{stock.ticker}</Badge>
                     </TableCell>
-                    <TableCell>{stock.name}</TableCell>
+                    <TableCell className="font-medium">{stock.name}</TableCell>
                     <TableCell className="text-right font-medium">
                         {stock.price > 0 ? `₹${stock.price.toFixed(2)}` : <Skeleton className="h-5 w-20 float-right rounded-md" />}
                     </TableCell>
                     <TableCell
                       className={cn(
-                        "text-right",
+                        "text-right font-semibold",
                          stock.price === 0 ? "text-muted-foreground" : stock.changePercent >= 0 ? "text-green-500" : "text-red-500"
                       )}
                     >
