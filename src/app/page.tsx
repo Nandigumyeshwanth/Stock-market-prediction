@@ -2,7 +2,7 @@
 "use client";
 import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -68,11 +68,6 @@ function Dashboard() {
     const padding = (max - min) * 0.1 || 10;
 
     return [Math.floor(min - padding), Math.ceil(max + padding)];
-  };
-
-  const handleStockSelection = (ticker: string) => {
-    // This function is no longer needed as the interactive functionality has been removed.
-    // It is kept to prevent breaking any potential future implementations.
   };
 
   const selectedStockData = selectedTicker ? stockDetails[selectedTicker] : null;
@@ -142,13 +137,49 @@ function Dashboard() {
     loadInitialData();
   }, [initialLoadComplete, toast]);
   
-  useEffect(() => {
+    useEffect(() => {
     const searchTicker = searchParams.get('ticker')?.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
     if (searchTicker && initialLoadComplete && searchTicker !== selectedTicker) {
-      // This part is now intentionally left blank as the interactive selection from search
-      // is part of the feature that was requested to be removed.
+      const handleStockSelection = async (ticker: string) => {
+        const upperTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
+
+        if (!stockDetails[upperTicker]) {
+          try {
+            setIsGraphLoading(true);
+            const dataArray = await getStockData({ tickers: [upperTicker] });
+            if (dataArray && dataArray.length > 0) {
+              const newStockData = dataArray[0];
+              setStockDetails(prev => ({...prev, [upperTicker]: newStockData}));
+              
+              if (!watchlist.some(s => s.ticker === upperTicker)) {
+                setStockToAdd(newStockData.stock);
+              }
+            } else {
+              throw new Error("Stock data not found.");
+            }
+          } catch (error) {
+            console.error(`Failed to fetch data for ${upperTicker}:`, error);
+            toast({
+              title: "API Error",
+              description: `Could not fetch data for ${upperTicker}.`,
+              variant: "destructive",
+            });
+          } finally {
+            setIsGraphLoading(false);
+          }
+        }
+        
+        setSelectedTicker(upperTicker);
+
+        if (graphCardRef.current) {
+          graphCardRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      };
+      
+      handleStockSelection(searchTicker);
     }
-  }, [searchParams, initialLoadComplete, selectedTicker]);
+  }, [searchParams, initialLoadComplete, selectedTicker, stockDetails, toast, watchlist]);
+
 
   return (
     <MainLayout>
