@@ -14,12 +14,12 @@ import {
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { MainLayout } from "@/components/main-layout";
 import type { Index, Stock, ChartData } from "@/lib/types";
-import { ArrowDownRight, ArrowUpRight, Loader2, PlusCircle } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getStockData } from "@/ai/flows/stock-flow";
+import { getStockData, getStockOpinion } from "@/ai/flows/stock-flow";
 import { Button } from "@/components/ui/button";
 
 
@@ -82,22 +82,26 @@ function Dashboard() {
 
   const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
+    
+    // Always update the selected ticker first to trigger UI changes.
     setSelectedTicker(upperTicker);
     setStockToAdd(null);
-
+  
     if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-
+  
+    // If we already have the data, we don't need to fetch it again.
+    // The graph will update because `selectedTicker` has changed.
     if (stockDetails[upperTicker]) {
       return;
     }
     
     setIsGraphLoading(true);
-
+  
     try {
         const dataArray = await getStockData({ tickers: [upperTicker] });
-
+  
         if (!dataArray || dataArray.length === 0) {
           toast({
               title: "Data Not Found",
@@ -108,14 +112,14 @@ function Dashboard() {
           return;
         }
         const data = dataArray[0];
-
+  
         setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
         
         const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
         if (!stockExistsInWatchlist) {
             setStockToAdd(data.stock);
         }
-
+  
     } catch (error) {
         console.error(`Failed to load stock details for ${upperTicker}:`, error);
         toast({
@@ -127,6 +131,7 @@ function Dashboard() {
         setIsGraphLoading(false);
     }
   }, [stockDetails, toast, watchlist]);
+
 
   const confirmAddToWatchlist = () => {
     if (stockToAdd) {
@@ -328,7 +333,8 @@ function Dashboard() {
                     key={stock.ticker}
                     onClick={() => handleStockSelection(stock.ticker)}
                     className={cn(
-                      "cursor-pointer transition-colors border-border/20",
+                      "transition-colors border-border/20",
+                       initialLoadComplete && "cursor-pointer",
                       "data-[state=selected]:bg-muted/50"
                     )}
                     data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
@@ -413,6 +419,3 @@ function DashboardSkeleton() {
     </MainLayout>
   );
 }
-
-
-    
