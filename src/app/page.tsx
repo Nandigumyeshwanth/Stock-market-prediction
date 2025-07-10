@@ -311,33 +311,6 @@ function Dashboard() {
 
         <Card className="border-border/60">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-6 w-6 text-yellow-400" />
-              My Opinion
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-             {isOpinionLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-full mt-4" />
-              </div>
-            ) : (
-              <div>
-                <p className="font-semibold text-lg">{currentOpinion || "Select a stock to see the opinion."}</p>
-                {currentOpinion && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                        Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research before making any investment decisions.
-                    </p>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60">
-          <CardHeader>
             <CardTitle>Watchlist</CardTitle>
             <CardDescription>Select a stock to view its detailed performance.</CardDescription>
           </CardHeader>
