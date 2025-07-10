@@ -45,7 +45,7 @@ const ChartDataSchema = z.object({
 });
 
 const ChartDataOutputSchema = z.object({
-  chartData: z.array(ChartDataSchema).describe('An array of 12 data points for the stock chart, showing predicted prices for each month from January to December.'),
+  chartData: z.array(ChartDataSchema).describe('An array of 12 data points for the stock chart, showing a mix of historical and predicted prices for each month from January to December.'),
 });
 
 type StockData = z.infer<typeof StockOutputSchema> & {
@@ -90,11 +90,15 @@ const chartDataPrompt = ai.definePrompt({
   name: 'chartDataPrompt',
   input: { schema: z.object({ ticker: z.string(), price: z.number() }) },
   output: { schema: ChartDataOutputSchema },
-  prompt: `You are a financial data provider. For the stock "{{ticker}}" with a current price of {{price}} INR, generate a time-series chart data of predicted prices for all 12 months of a year.
+  prompt: `You are a financial data provider. For the stock "{{ticker}}" with a current price of {{price}} INR, generate a time-series chart data for all 12 months of a year.
 - The data must be an array of 12 objects, one for each month from "Jan" to "Dec".
-- Each object must have a "date" property (e.g., "Jan", "Feb") and a "prediction" property. Do not use a "price" property.
-- CRITICAL: The first month's ("Jan") prediction MUST be exactly {{price}}.
-- The subsequent months' predictions should show a plausible future trend starting from the initial price.`,
+- Let the current month be the 7th month (July).
+- For each month up to and including the current month (Jan to Jul), generate a historical "price".
+- For each month after the current month (Aug to Dec), generate a "prediction".
+- CRITICAL: The "price" for the current month (July) MUST be exactly {{price}}.
+- The historical prices should show a plausible trend leading up to the current price.
+- The future predictions should show a plausible trend starting from the current price.
+- Each object should have a "date" and EITHER a "price" or a "prediction", but not both.`,
   config: {
     safetySettings: [
       {
@@ -151,18 +155,26 @@ const generateMockStockInfo = (ticker: string): Stock => {
 const generateMockChartData = (price: number): ChartData[] => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const data: ChartData[] = [];
-    
-    let currentPrice = price; // Start predictions from the exact price
+    const currentMonthIndex = 6; // July
 
-    // Generate predicted data for all 12 months
-    for (let i = 0; i < 12; i++) {
-        if (i === 0) {
-            data.push({ date: months[i], prediction: parseFloat(currentPrice.toFixed(2)) });
-        } else {
-            currentPrice *= (1 + (Math.random() * 0.1 - 0.04)); // Slightly positive trend for prediction
-            data.push({ date: months[i], prediction: parseFloat(currentPrice.toFixed(2)) });
-        }
+    let historicalPrice = price / (1 + (Math.random() * 0.1 - 0.05)); // Start from a price a bit lower
+    
+    // Generate historical data
+    for (let i = 0; i < currentMonthIndex; i++) {
+      historicalPrice *= (1 + (Math.random() * 0.1 - 0.045));
+      data.push({ date: months[i], price: parseFloat(historicalPrice.toFixed(2)) });
     }
+
+    // Set current month's price exactly
+    data.push({ date: months[currentMonthIndex], price: parseFloat(price.toFixed(2)) });
+
+    let predictionPrice = price; // Start predictions from the exact price
+    // Generate predicted data
+    for (let i = currentMonthIndex + 1; i < 12; i++) {
+      predictionPrice *= (1 + (Math.random() * 0.1 - 0.04)); // Slightly positive trend for prediction
+      data.push({ date: months[i], prediction: parseFloat(predictionPrice.toFixed(2)) });
+    }
+
     return data;
 };
 
