@@ -110,6 +110,7 @@ function Dashboard() {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    // If stock data is already present, just fetch opinion if needed
     if (stockDetails[upperTicker]) {
       if (!stockDetails[upperTicker].opinion && !stockDetails[upperTicker].opinionLoading) {
         fetchOpinionForStock(upperTicker, stockDetails[upperTicker].stock.name);
@@ -136,9 +137,11 @@ function Dashboard() {
         setStockDetails(prev => ({ ...prev, [upperTicker]: { ...data, opinionLoading: true } }));
         setWatchlist(prev => {
             const stockExists = prev.some(s => s.ticker === upperTicker);
+            // Add to watchlist if it's a new stock, otherwise update existing entry
             return !stockExists ? [data.stock, ...prev] : prev.map(s => s.ticker === upperTicker ? data.stock : s);
         });
 
+        // Fetch opinion for the newly selected stock
         fetchOpinionForStock(upperTicker, data.stock.name);
 
     } catch (error) {
@@ -156,63 +159,54 @@ function Dashboard() {
   // Effect for initial data load of the whole watchlist
   useEffect(() => {
     const loadInitialData = async () => {
-      // Use Promise.allSettled to fetch all data in parallel without one failure stopping others.
-      const tickerPromises = initialWatchlist.map(stock => 
-        // Requesting data for one ticker at a time is more reliable
-        getStockData({ tickers: [stock.ticker] })
-      );
-      
-      const results = await Promise.allSettled(tickerPromises);
+      // Don't run this if data is already loaded or a search is in progress
+      if (initialLoadComplete) return;
 
-      const newDetails: Record<string, StockDetailsState> = {};
-      const newWatchlist: Stock[] = [...initialWatchlist]; // Start with the initial list
-      let firstSuccessfulStock: StockData | null = null;
+      setIsGraphLoading(true);
 
-      results.forEach((result, index) => {
-        const ticker = initialWatchlist[index].ticker;
+      const tickers = initialWatchlist.map(s => s.ticker);
+      try {
+        const dataArray = await getStockData({ tickers });
 
-        if (result.status === 'fulfilled' && result.value && result.value.length > 0) {
-          const data = result.value[0];
-          newDetails[ticker] = { ...data, opinionLoading: false };
-          // Find the stock in newWatchlist and update it
-          const stockIndex = newWatchlist.findIndex(s => s.ticker === ticker);
-          if (stockIndex !== -1) {
-            newWatchlist[stockIndex] = data.stock;
-          }
-          if (!firstSuccessfulStock) {
-            firstSuccessfulStock = data;
-          }
-        } else {
-          // Log error but don't show a toast for every single failure, which would be annoying
-          console.error(`Failed to load data for ${ticker}:`, result.status === 'rejected' ? result.reason : 'No data returned');
+        if (!dataArray || dataArray.length === 0) {
+          throw new Error("Initial watchlist data could not be loaded.");
         }
-      });
-      
-      // Batch update states
-      setWatchlist(newWatchlist);
-      setStockDetails(prev => ({...prev, ...newDetails}));
 
-      // If we successfully loaded at least one stock, select it and fetch its opinion
-      if (firstSuccessfulStock) {
-        setSelectedTicker(firstSuccessfulStock.stock.ticker);
-        fetchOpinionForStock(firstSuccessfulStock.stock.ticker, firstSuccessfulStock.stock.name);
-      } else {
-        // Only show a major error toast if ALL requests failed
+        const newDetails: Record<string, StockDetailsState> = {};
+        const newWatchlist: Stock[] = [];
+
+        dataArray.forEach(data => {
+          newDetails[data.stock.ticker] = { ...data, opinion: undefined, opinionLoading: false };
+          newWatchlist.push(data.stock);
+        });
+        
+        setStockDetails(newDetails);
+        setWatchlist(newWatchlist);
+        
+        // Select the first stock and fetch its opinion
+        const firstTicker = newWatchlist[0]?.ticker;
+        if (firstTicker) {
+            setSelectedTicker(firstTicker);
+            fetchOpinionForStock(firstTicker, newWatchlist[0].name);
+        }
+
+      } catch (error) {
+        console.error("Failed to load initial watchlist:", error);
         toast({
           title: "API Error",
-          description: "Could not load watchlist data. The API may be busy. Please try refreshing.",
+          description: "Could not load initial watchlist data. Please refresh.",
           variant: "destructive",
         });
+      } finally {
+        setIsGraphLoading(false);
+        setInitialLoadComplete(true);
       }
-
-      setIsGraphLoading(false);
-      setInitialLoadComplete(true);
     };
 
-    if (!initialLoadComplete) {
-      loadInitialData();
-    }
-  }, [initialLoadComplete, toast, fetchOpinionForStock]);
+    loadInitialData();
+    // Disabled exhaustive-deps because this should only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Effect to handle subsequent searches from the URL
   useEffect(() => {
@@ -260,7 +254,7 @@ function Dashboard() {
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isGraphLoading ? (
+           {isGraphLoading && !currentChartData.length ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
@@ -329,7 +323,7 @@ function Dashboard() {
                 <Skeleton className="h-4 w-3/4" />
               </div>
             ) : (
-              <p className="text-muted-foreground">{currentOpinion || "No opinion available for this stock."}</p>
+              <p className="text-muted-foreground">{currentOpinion || "Select a stock to see the AI opinion."}</p>
             )}
           </CardContent>
         </Card>
@@ -407,7 +401,10 @@ function DashboardSkeleton() {
         <Card>
           <CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-            <Skeleton className="h-full w-full" />
+            <div className="h-full w-full flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="ml-4">Loading stock data...</p>
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -431,6 +428,8 @@ function DashboardSkeleton() {
           </CardHeader>
           <CardContent>
              <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
