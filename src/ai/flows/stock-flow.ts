@@ -45,7 +45,7 @@ const ChartDataSchema = z.object({
 });
 
 const ChartDataOutputSchema = z.object({
-  chartData: z.array(ChartDataSchema).describe('An array of 10 data points for the stock chart, including 6 historical and 10 prediction points.'),
+  chartData: z.array(ChartDataSchema).describe('An array of 10 data points for the stock chart, including 6 historical and 4 prediction points.'),
 });
 
 type StockData = z.infer<typeof StockOutputSchema> & {
@@ -75,10 +75,10 @@ const chartDataPrompt = ai.definePrompt({
   input: { schema: z.object({ ticker: z.string(), price: z.number() }) },
   output: { schema: ChartDataOutputSchema },
   prompt: `You are a financial data provider. Generate a realistic but fictional time-series chart data for the stock {{{ticker}}}. The current price is {{{price}}} INR.
-- Generate 10 data points for 10 consecutive months (Jan to Oct).
-- The first 6 data points should be historical prices ('price'). Start the history at a price that is within +/- 10% of the current price and show plausible fluctuations.
-- The next 10 data points should be predicted prices ('prediction'). The prediction should start from the last historical price and show plausible future fluctuations.
-- The 'price' and 'prediction' values should overlap for the first 6 months.
+- Generate 10 data points for 10 consecutive months (e.g., Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct).
+- The first 6 data points (e.g., Jan to Jun) should be historical prices ('price'). The historical data should show plausible fluctuations, with the last historical point being close to the current price.
+- The next 4 data points (e.g., Jul to Oct) should be predicted prices ('prediction'). The prediction should start from the last historical price and show a plausible future trend.
+- The 'prediction' property should only exist for the future months (Jul-Oct). The 'price' property should only exist for historical months (Jan-Jun).
 `,
   config: {
     safetySettings: [
