@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -214,11 +214,14 @@ function Dashboard() {
   return (
     <MainLayout>
       <div className="flex flex-col gap-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">Welcome to your Infinytix dashboard.</p>
+        </div>
         
         <div className="grid gap-4 md:grid-cols-3">
           {indices.map((index) => (
-            <Card key={index.name}>
+            <Card key={index.name} className="border-border/60">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{index.name}</CardTitle>
                 {index.changePercent >= 0 ? (
@@ -240,12 +243,15 @@ function Dashboard() {
           ))}
         </div>
 
-        <Card ref={graphCardRef}>
+        <Card ref={graphCardRef} className="border-border/60">
           <CardHeader>
             {isGraphLoading && !selectedStock ? (
                 <Skeleton className="h-8 w-1/2" />
             ) : (
+                <>
                 <CardTitle>{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
+                <CardDescription>Historical price vs. AI-powered price prediction</CardDescription>
+                </>
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
@@ -303,7 +309,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-6 w-6 text-yellow-400" />
@@ -330,9 +336,10 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60">
           <CardHeader>
             <CardTitle>Watchlist</CardTitle>
+            <CardDescription>Select a stock to view its detailed performance.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -394,14 +401,20 @@ function DashboardSkeleton() {
   return (
     <MainLayout>
       <div className="flex flex-col gap-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">Welcome to your Infinytix dashboard.</p>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           <Card><CardHeader><Skeleton className="h-6 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
           <Card><CardHeader><Skeleton className="h-6 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
           <Card><CardHeader><Skeleton className="h-6 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
         </div>
-        <Card>
-          <CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader>
+        <Card className="border-border/60">
+          <CardHeader>
+            <Skeleton className="h-8 w-1/2" />
+            <Skeleton className="h-4 w-1/3 mt-1" />
+          </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
             <div className="h-full w-full flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -409,7 +422,7 @@ function DashboardSkeleton() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/60">
           <CardHeader>
              <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-6 w-6 text-yellow-400" />
@@ -424,9 +437,10 @@ function DashboardSkeleton() {
               </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/60">
           <CardHeader>
             <CardTitle>Watchlist</CardTitle>
+            <CardDescription>Select a stock to view its detailed performance.</CardDescription>
           </CardHeader>
           <CardContent>
              <div className="space-y-2">

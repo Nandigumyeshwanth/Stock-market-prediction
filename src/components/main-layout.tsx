@@ -32,7 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 
 const Logo = () => (
   <div className="flex items-center gap-2">
@@ -49,7 +48,7 @@ const Logo = () => (
       <path d="M3 3v18h18" />
       <path d="m19 9-5 5-4-4-3 3" />
     </svg>
-    <h1 className="text-xl font-bold text-white">Infinytix</h1>
+    <h1 className="text-xl font-bold text-foreground">Infinytix</h1>
   </div>
 );
 
@@ -96,7 +95,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center justify-between border-b px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b px-4 md:px-6">
           <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden" />
             <form onSubmit={handleSearch} className="hidden items-center gap-2 md:flex">
@@ -109,7 +108,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button type="submit">Search</Button>
             </form>
           </div>
           <div className="flex items-center gap-4">
