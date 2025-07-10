@@ -59,11 +59,27 @@ const stockInfoPrompt = ai.definePrompt({
   name: 'stockInfoPrompt',
   input: {schema: StockInputSchema},
   output: {schema: StockOutputSchema},
-  prompt: `You are a financial data provider. Generate realistic but fictional stock data for the company with the ticker symbol: {{{ticker}}}. The data should be in INR. The price should be a random number between 50 and 8000. The change should be a random fluctuation between -5% and +5% of the price. If you do not recognize the ticker, generate plausible data for a fictional company with that ticker.`,
+  prompt: `You are a financial data provider. For the stock ticker "{{ticker}}", generate realistic but fictional data in INR.
+- The company name should be plausible for the given ticker.
+- The price should be a random number between 500 and 8000.
+- The change should be a random fluctuation between -5% and +5% of the price.
+If you do not recognize the ticker, generate plausible data for a fictional company with that ticker.`,
   config: {
     safetySettings: [
       {
         category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+       {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
         threshold: 'BLOCK_NONE',
       },
     ],
@@ -74,16 +90,27 @@ const chartDataPrompt = ai.definePrompt({
   name: 'chartDataPrompt',
   input: { schema: z.object({ ticker: z.string(), price: z.number() }) },
   output: { schema: ChartDataOutputSchema },
-  prompt: `You are a financial data provider. Generate a realistic but fictional time-series chart data for the stock {{{ticker}}}. The current price is {{{price}}} INR.
-- Generate 10 data points for 10 consecutive months (e.g., Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct).
-- The first 6 data points (e.g., Jan to Jun) should be historical prices ('price'). The historical data should show plausible fluctuations, with the last historical point being close to the current price.
-- The next 4 data points (e.g., Jul to Oct) should be predicted prices ('prediction'). The prediction should start from the last historical price and show a plausible future trend.
-- The 'prediction' property should only exist for the future months (Jul-Oct). The 'price' property should only exist for historical months (Jan-Jun).
-`,
+  prompt: `You are a financial data provider. For the stock "{{ticker}}" with a current price of {{price}} INR, generate a time-series chart data for 10 consecutive months.
+- The data should be an array of 10 objects, each with a "date" (e.g., "Jan", "Feb") and either a "price" or "prediction" property.
+- The first 6 months are historical data. Their objects must have a "price" property. The historical prices should show plausible fluctuations, with the 6th month's price being close to the current price.
+- The next 4 months are future predictions. Their objects must have a "prediction" property. The prediction should start from the last historical price and show a plausible future trend.
+- Ensure each object has EITHER a 'price' OR a 'prediction' key, but not both.`,
   config: {
     safetySettings: [
       {
         category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+       {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
         threshold: 'BLOCK_NONE',
       },
     ],
@@ -106,6 +133,43 @@ const stockOpinionPrompt = ai.definePrompt({
   },
 });
 
+// --- Fallback Data Generation ---
+
+const generateMockStockInfo = (ticker: string): Stock => {
+  const price = Math.random() * (8000 - 500) + 500;
+  const changePercent = (Math.random() * 10) - 5; // -5% to +5%
+  const change = price * (changePercent / 100);
+  return {
+    ticker,
+    name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Fictional Inc.`,
+    price,
+    change,
+    changePercent,
+  };
+};
+
+const generateMockChartData = (price: number): ChartData[] => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
+    const data: ChartData[] = [];
+    let currentPrice = price * (1 - (Math.random() * 0.2 - 0.1)); // Start history 10% above/below current price
+
+    // Historical data
+    for (let i = 0; i < 6; i++) {
+        data.push({ date: months[i], price: parseFloat(currentPrice.toFixed(2)) });
+        currentPrice *= (1 + (Math.random() * 0.1 - 0.05)); // Fluctuate by -5% to +5%
+    }
+    // Ensure last historical point is near the actual price
+    data[5].price = price;
+
+    // Predicted data
+    for (let i = 6; i < 10; i++) {
+        currentPrice *= (1 + (Math.random() * 0.1 - 0.04)); // Slightly positive trend for prediction
+        data.push({ date: months[i], prediction: parseFloat(currentPrice.toFixed(2)) });
+    }
+    return data;
+};
+
+
 // --- AI Flows ---
 
 const getStockDataFlow = ai.defineFlow(
@@ -118,32 +182,24 @@ const getStockDataFlow = ai.defineFlow(
     const stockDataPromises = tickers.map(async (ticker) => {
       try {
         const {output: stockInfo} = await stockInfoPrompt({ticker});
-        if (!stockInfo) throw new Error('Failed to get stock info');
+        if (!stockInfo || !stockInfo.price) throw new Error('Failed to get stock info');
 
         const {output: chartDataObj} = await chartDataPrompt({ticker, price: stockInfo.price});
-        if (!chartDataObj) throw new Error('Failed to get chart data');
+        if (!chartDataObj || !chartDataObj.chartData || chartDataObj.chartData.length === 0) throw new Error('Failed to get chart data');
         
         return { stock: stockInfo, chartData: chartDataObj.chartData };
       } catch (error) {
-        console.error(`Failed to generate data for ${ticker}:`, error);
-        // Return a default/error state for this specific ticker
-        const price = Math.random() * (8000 - 50) + 50;
-        const change = price * (Math.random() * 0.1 - 0.05);
+        console.error(`AI generation failed for ${ticker}, using mock data. Error:`, error);
+        const mockStockInfo = generateMockStockInfo(ticker);
+        const mockChartData = generateMockChartData(mockStockInfo.price);
         return {
-          stock: {
-            ticker,
-            name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Inc. (Fictional)`,
-            price: price,
-            change: change,
-            changePercent: (change / (price - change)) * 100,
-          },
-          chartData: [],
+          stock: mockStockInfo,
+          chartData: mockChartData,
         };
       }
     });
 
-    const results = await Promise.all(stockDataPromises);
-    return results.filter(r => r.chartData.length > 0); // Filter out any complete failures if needed
+    return Promise.all(stockDataPromises);
   }
 );
 
@@ -163,7 +219,7 @@ const getStockOpinionFlow = ai.defineFlow(
         return output;
     } catch (error) {
         console.error(`Failed to get opinion for ${input.ticker}:`, error);
-        return { opinion: "AI financial opinion is currently unavailable for this stock." };
+        return { opinion: "Disclaimer: This is an AI-generated analysis and not financial advice. AI opinion is currently unavailable for this stock, please conduct your own research." };
     }
   }
 );
@@ -172,7 +228,9 @@ const getStockOpinionFlow = ai.defineFlow(
 // --- Exported Functions ---
 
 export async function getStockData(input: { tickers: string[] }): Promise<StockData[]> {
-  return getStockDataFlow(input);
+  const results = await getStockDataFlow(input);
+  // Ensure we always return a valid array, even if the flow somehow fails.
+  return results || [];
 }
 
 export async function getStockOpinion(input: {ticker: string; name: string}): Promise<{opinion: string}> {
