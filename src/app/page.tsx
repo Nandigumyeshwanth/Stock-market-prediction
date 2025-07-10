@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getStockData, getStockOpinion } from "@/ai/flows/stock-flow";
+import { getStockData } from "@/ai/flows/stock-flow";
 import { Button } from "@/components/ui/button";
 
 
@@ -241,7 +241,6 @@ function Dashboard() {
             ) : (
                 <>
                 <CardTitle className="text-xl">{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
-                <CardDescription>Historical price vs. AI-powered price prediction</CardDescription>
                 </>
             )}
           </CardHeader>
