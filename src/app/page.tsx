@@ -201,13 +201,13 @@ function Dashboard() {
     <MainLayout>
       <div className="flex flex-col gap-8">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">Welcome to your Infinytix dashboard.</p>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {indices.map((index) => (
-            <Card key={index.name} className="border-border/20 shadow-sm hover:shadow-lg transition-shadow duration-300">
+            <Card key={index.name} className="border-border/60 hover:border-primary/80 transition-colors duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{index.name}</CardTitle>
                 {index.changePercent >= 0 ? (
@@ -217,7 +217,7 @@ function Dashboard() {
                 )}
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground">{index.value}</div>
+                <div className="text-2xl font-bold">{index.value}</div>
                 <p className={cn(
                   "text-xs font-semibold",
                   index.changePercent >= 0 ? "text-green-500" : "text-red-500"
@@ -229,19 +229,19 @@ function Dashboard() {
           ))}
         </div>
 
-        <Card ref={graphCardRef} className="border-border/20 shadow-sm">
+        <Card ref={graphCardRef} className="border-border/60">
           <CardHeader>
             {isGraphLoading && !selectedStock ? (
                 <Skeleton className="h-8 w-1/2 rounded-md bg-muted/50" />
             ) : (
                 <>
-                <CardTitle className="text-xl text-foreground">{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
+                <CardTitle className="text-xl">{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
                 <CardDescription>Historical price vs. AI-powered price prediction</CardDescription>
                 </>
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isGraphLoading && !currentChartData.length ? (
+           {isGraphLoading && currentChartData.length === 0 ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
@@ -296,7 +296,7 @@ function Dashboard() {
         </Card>
 
         {stockToAdd && (
-            <Card className="border-border/20 bg-card/50">
+            <Card className="border-border/60 bg-card/50">
                 <CardContent className="p-4 flex items-center justify-between">
                     <div>Do you want to add <Badge variant="outline">{stockToAdd.ticker}</Badge> to the watchlist?</div>
                     <div className="flex gap-2">
@@ -307,7 +307,7 @@ function Dashboard() {
             </Card>
         )}
 
-        <Card className="border-border/20 shadow-sm">
+        <Card className="border-border/60">
           <CardHeader>
             <CardTitle className="text-xl">Watchlist</CardTitle>
             <CardDescription>Select a stock to view its detailed performance.</CardDescription>
@@ -328,8 +328,7 @@ function Dashboard() {
                     key={stock.ticker}
                     onClick={() => handleStockSelection(stock.ticker)}
                     className={cn(
-                      "transition-colors border-border/20",
-                      initialLoadComplete ? "cursor-pointer" : "",
+                      "cursor-pointer transition-colors border-border/20",
                       "data-[state=selected]:bg-muted/50"
                     )}
                     data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
@@ -414,3 +413,6 @@ function DashboardSkeleton() {
     </MainLayout>
   );
 }
+
+
+    
