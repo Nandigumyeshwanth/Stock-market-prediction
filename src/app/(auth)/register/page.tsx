@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { sendWelcomeEmail } from "@/ai/flows/send-email-flow";
 import { auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 
 
 const registerSchema = z.object({
@@ -81,36 +81,6 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      console.log("Signed up with Google:", user.email);
-      
-      if (user.displayName && user.email) {
-          try {
-            sendWelcomeEmail({ fullName: user.displayName, email: user.email });
-          } catch (error) {
-            console.error("Failed to send welcome email:", error);
-          }
-      }
-
-      toast({
-        title: "Account Created!",
-        description: `Welcome, ${user.displayName}!`,
-      });
-      router.push("/"); 
-    } catch (error: any) {
-      console.error("Google sign-up failed:", error);
-      toast({
-        title: "Google Sign-up Failed",
-        description: error.message || "Could not sign up with Google.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <Card className="mx-auto max-w-sm">
       <CardHeader>
@@ -163,9 +133,6 @@ export default function RegisterPage() {
             />
             <Button type="submit" className="w-full">
               Create an account
-            </Button>
-            <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignUp}>
-              Sign up with Google
             </Button>
           </form>
         </Form>

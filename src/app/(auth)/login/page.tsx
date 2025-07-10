@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from '@/lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 
 const loginSchema = z.object({
@@ -51,7 +51,6 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       console.log("Logging in user:", data.email);
       
-      // We don't need localStorage anymore as Firebase handles the session
       toast({
         title: "Login Successful",
         description: `Welcome back!`,
@@ -62,27 +61,6 @@ export default function LoginPage() {
       toast({
         title: "Login Failed",
         description: error.message || "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  const handleGoogleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      console.log("Logged in with Google:", user.email);
-      toast({
-        title: "Login Successful",
-        description: `Welcome, ${user.displayName}!`,
-      });
-      router.push("/");
-    } catch (error: any) {
-      console.error("Google login failed:", error);
-      toast({
-        title: "Google Login Failed",
-        description: error.message || "Could not sign in with Google.",
         variant: "destructive",
       });
     }
@@ -135,9 +113,6 @@ export default function LoginPage() {
             />
             <Button type="submit" className="w-full">
               Login
-            </Button>
-            <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin}>
-              Login with Google
             </Button>
           </form>
         </Form>
