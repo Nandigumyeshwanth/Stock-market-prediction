@@ -73,48 +73,46 @@ function Dashboard() {
     const upperTicker = ticker.toUpperCase().replace(/\s/g, '');
     
     setStockToAdd(null);
-    setSelectedTicker(upperTicker);
+    setSelectedTicker(upperTicker); // Always update the selected ticker
 
     if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   
-    if (stockDetails[upperTicker]) {
-      return;
-    }
+    // If details for this ticker are not already loaded, fetch them.
+    if (!stockDetails[upperTicker]) {
+      setIsGraphLoading(true);
+      try {
+          const dataArray = await getStockData({ tickers: [upperTicker] });
     
-    setIsGraphLoading(true);
-  
-    try {
-        const dataArray = await getStockData({ tickers: [upperTicker] });
-  
-        if (!dataArray || dataArray.length === 0) {
+          if (!dataArray || dataArray.length === 0) {
+            toast({
+                title: "Data Not Found",
+                description: `Could not load data for ${upperTicker}. The API may be busy or the ticker may not be supported. Please try again shortly.`,
+                variant: "destructive",
+            });
+            setIsGraphLoading(false);
+            return;
+          }
+          const data = dataArray[0];
+    
+          setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
+          
+          const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
+          if (!stockExistsInWatchlist) {
+              setStockToAdd(data.stock);
+          }
+    
+      } catch (error) {
+          console.error(`Failed to load stock details for ${upperTicker}:`, error);
           toast({
-              title: "Data Not Found",
-              description: `Could not load data for ${upperTicker}. The API may be busy or the ticker may not be supported. Please try again shortly.`,
+              title: "Error",
+              description: `An unexpected error occurred while loading data for ${upperTicker}.`,
               variant: "destructive",
           });
+      } finally {
           setIsGraphLoading(false);
-          return;
-        }
-        const data = dataArray[0];
-  
-        setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
-        
-        const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
-        if (!stockExistsInWatchlist) {
-            setStockToAdd(data.stock);
-        }
-  
-    } catch (error) {
-        console.error(`Failed to load stock details for ${upperTicker}:`, error);
-        toast({
-            title: "Error",
-            description: `An unexpected error occurred while loading data for ${upperTicker}.`,
-            variant: "destructive",
-        });
-    } finally {
-        setIsGraphLoading(false);
+      }
     }
   }, [stockDetails, toast, watchlist]);
 
@@ -238,13 +236,11 @@ function Dashboard() {
             {isGraphLoading && !selectedStock ? (
                 <Skeleton className="h-8 w-1/2 rounded-md bg-muted/50" />
             ) : (
-                <>
                 <CardTitle className="text-xl">{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
-                </>
             )}
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
-           {isGraphLoading ? (
+           {isGraphLoading && !currentChartData.length ? (
                 <div className="h-full w-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="ml-4">Loading stock data...</p>
@@ -331,7 +327,8 @@ function Dashboard() {
                     key={stock.ticker}
                     onClick={() => handleStockSelection(stock.ticker)}
                     className={cn(
-                      "transition-colors border-border/20 cursor-pointer",
+                      "transition-colors border-border/20",
+                      initialLoadComplete && "cursor-pointer",
                       "data-[state=selected]:bg-muted/50"
                     )}
                     data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
