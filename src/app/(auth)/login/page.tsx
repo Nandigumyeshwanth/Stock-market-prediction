@@ -22,6 +22,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -32,6 +36,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -40,6 +45,32 @@ export default function LoginPage() {
       password: "",
     },
   });
+
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      console.log("Logged in with Google:", user);
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("authToken", await user.getIdToken());
+      }
+      toast({
+        title: "Login Successful",
+        description: `Welcome back, ${user.displayName}!`,
+      });
+      router.push("/");
+
+    } catch (error) {
+      console.error("Google login error:", error);
+       toast({
+        title: "Login Failed",
+        description: "Could not log in with Google. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const onSubmit = (data: LoginFormValues) => {
     // In a real app, you would validate credentials against a backend.
@@ -103,7 +134,7 @@ export default function LoginPage() {
             <Button type="submit" className="w-full">
               Login
             </Button>
-            <Button variant="outline" className="w-full" type="button">
+            <Button variant="outline" className="w-full" type="button" onClick={handleGoogleLogin}>
               Login with Google
             </Button>
           </form>
