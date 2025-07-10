@@ -23,8 +23,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { auth } from '@/lib/firebase';
-import { signInWithEmailAndPassword } from "firebase/auth";
 
 
 const loginSchema = z.object({
@@ -48,9 +46,18 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      // Simulate login
       console.log("Logging in user:", data.email);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (data.email === "fail@example.com") {
+        throw new Error("Invalid credentials");
+      }
       
+      // In a real app, you would manage a session here.
+      // For this simulation, we'll just store a flag in localStorage.
+      localStorage.setItem("isAuthenticated", "true");
+
       toast({
         title: "Login Successful",
         description: `Welcome back!`,
@@ -60,7 +67,7 @@ export default function LoginPage() {
       console.error("Login failed:", error);
       toast({
         title: "Login Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: "Invalid credentials. Please try again.",
         variant: "destructive",
       });
     }

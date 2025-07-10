@@ -23,8 +23,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { auth } from '@/lib/firebase';
-import { sendPasswordResetEmail } from "firebase/auth";
 import { MailCheck } from "lucide-react";
 
 const forgotPasswordSchema = z.object({
@@ -46,8 +44,16 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotPasswordFormValues) => {
     try {
-      await sendPasswordResetEmail(auth, data.email);
+      // Simulate sending a password reset email
       console.log("Password reset email sent to:", data.email);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+      
+      // In a real app, you would integrate with a service like Firebase Auth here.
+      // For now, we'll just simulate success.
+      if (data.email.includes("fail")) {
+          throw new Error("This email address is not registered.");
+      }
+
       setIsEmailSent(true);
     } catch (error: any) {
       console.error("Password reset failed:", error);

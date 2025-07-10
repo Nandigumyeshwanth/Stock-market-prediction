@@ -2,10 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
 
 const withAuth = <P extends object>(WrappedComponent: React.ComponentType<P>) => {
   const AuthComponent = (props: P) => {
@@ -14,17 +11,21 @@ const withAuth = <P extends object>(WrappedComponent: React.ComponentType<P>) =>
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user) {
+      // This is a client-side check. It will run after the component mounts.
+      try {
+        const authStatus = localStorage.getItem('isAuthenticated');
+        if (authStatus === 'true') {
           setIsAuthenticated(true);
         } else {
           router.replace('/login');
         }
+      } catch (error) {
+        // If localStorage is not available or any other error occurs
+        console.error("Auth check failed", error);
+        router.replace('/login');
+      } finally {
         setIsLoading(false);
-      });
-
-      // Cleanup subscription on unmount
-      return () => unsubscribe();
+      }
     }, [router]);
 
     if (isLoading) {

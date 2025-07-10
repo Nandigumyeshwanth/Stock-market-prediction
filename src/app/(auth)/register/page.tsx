@@ -24,8 +24,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { sendWelcomeEmail } from "@/ai/flows/send-email-flow";
-import { auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 
 
 const registerSchema = z.object({
@@ -52,12 +50,14 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      
-      await updateProfile(userCredential.user, { displayName: data.fullName });
-
+      // Simulate creating a user account
       console.log("Registering user:", data.email);
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
+      if (data.email.includes("fail")) {
+        throw new Error("This email is already taken.");
+      }
+
       try {
         // Fire-and-forget the email simulation
         sendWelcomeEmail({ fullName: data.fullName, email: data.email });
@@ -75,7 +75,7 @@ export default function RegisterPage() {
         console.error("Registration failed:", error);
         toast({
             title: "Registration Failed",
-            description: error.message || "An unexpected error occurred.",
+            description: "This email is already taken. Please try another.",
             variant: "destructive",
         });
     }

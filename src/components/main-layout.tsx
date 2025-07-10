@@ -33,8 +33,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -75,7 +73,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      // Simulate logout
+      localStorage.removeItem("isAuthenticated");
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",
