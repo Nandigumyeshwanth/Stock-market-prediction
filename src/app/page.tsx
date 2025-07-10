@@ -320,7 +320,7 @@ function Dashboard() {
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle className="text-xl">Watchlist</CardTitle>
-            <CardDescription>Select a stock to view its detailed performance.</CardDescription>
+            <CardDescription>Your curated list of top stocks to watch.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -336,11 +336,9 @@ function Dashboard() {
                 {watchlist.map((stock) => (
                   <TableRow 
                     key={stock.ticker}
-                    onClick={() => handleStockSelection(stock.ticker)}
                     className={cn(
                       "transition-colors border-border/20",
-                      initialLoadComplete && "cursor-pointer",
-                      "data-[state=selected]:bg-muted/50"
+                       "data-[state=selected]:bg-muted/50"
                     )}
                     data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
                   >
@@ -407,7 +405,7 @@ function DashboardSkeleton() {
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle>Watchlist</CardTitle>
-            <CardDescription>Select a stock to view its detailed performance.</CardDescription>
+            <CardDescription>Your curated list of top stocks to watch.</CardDescription>
           </CardHeader>
           <CardContent>
              <div className="space-y-2">
@@ -423,5 +421,3 @@ function DashboardSkeleton() {
     </MainLayout>
   );
 }
-
-    
