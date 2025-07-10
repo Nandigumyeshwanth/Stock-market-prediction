@@ -14,7 +14,7 @@ import {
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { MainLayout } from "@/components/main-layout";
 import type { Stock, ChartData } from "@/lib/types";
-import { ArrowDownRight, ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
