@@ -12,14 +12,74 @@ import {
 } from "@/components/ui/table";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { MainLayout } from "@/components/main-layout";
-import type { Index, Stock } from "@/lib/types";
+import type { Index, Stock, ChartData } from "@/lib/types";
 import { ArrowDownRight, ArrowUpRight, Lightbulb, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getStockData, type StockData } from "@/ai/flows/stock-flow";
-import { getStockOpinion } from "@/ai/flows/stock-opinion-flow";
+
+type StockData = {
+  stock: Stock;
+  chartData: ChartData[];
+};
+
+// --- Mock Data Generation ---
+
+const generateMockStockData = (ticker: string): StockData => {
+    const price = Math.random() * (8000 - 50) + 50;
+    const change = price * (Math.random() * 0.1 - 0.05); // -5% to +5% change
+    const changePercent = (change / (price - change)) * 100;
+  
+    const stock = {
+      ticker,
+      name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Inc.`, // e.g. RELIANCE -> Reliance Inc.
+      price,
+      change,
+      changePercent,
+    };
+  
+    const chartData: ChartData[] = [];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
+    let lastPrice = price * (Math.random() * 0.2 + 0.9); // Start historical data around -10% to +10% of current price
+  
+    // Generate historical data
+    for (let i = 0; i < 6; i++) {
+        const fluctuation = lastPrice * (Math.random() * 0.1 - 0.045); // Fluctuate for history
+        lastPrice += fluctuation;
+        chartData.push({ date: months[i], price: lastPrice });
+    }
+  
+    // Generate prediction data (continuous from historical)
+    let lastPrediction = lastPrice;
+    for (let i = 0; i < 10; i++) {
+        const fluctuation = lastPrediction * (Math.random() * 0.1 - 0.04); // Fluctuate for prediction
+        lastPrediction += fluctuation;
+        if (i < 6) {
+            chartData[i].prediction = lastPrediction;
+        } else {
+            chartData.push({ date: months[i], prediction: lastPrediction });
+        }
+    }
+  
+    return { stock, chartData };
+};
+
+const getStockData = async (tickers: string[]): Promise<StockData[]> => {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return tickers.map(ticker => generateMockStockData(ticker));
+};
+
+const getStockOpinion = async (ticker: string, name: string): Promise<{ opinion: string }> => {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    return {
+        opinion: `Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research. ${name} (${ticker}) shows potential for growth due to recent market trends, but faces challenges from competitors.`
+    };
+};
+
+// --- End of Mock Data Generation ---
+
 
 const indices: Index[] = [
   { name: "NIFTY 50", value: "23,537.85", change: "+66.70", changePercent: 0.28 },
@@ -37,7 +97,6 @@ const initialWatchlist: Stock[] = [
     { ticker: "TATAMOTORS", name: "Tata Motors", price: 0, change: 0, changePercent: 0 },
     { ticker: "ITC", name: "ITC Limited", price: 0, change: 0, changePercent: 0 },
 ];
-
 
 type StockDetailsState = StockData & {
   opinion?: string;
@@ -88,7 +147,7 @@ function Dashboard() {
     }));
 
     try {
-        const { opinion } = await getStockOpinion({ ticker, name });
+        const { opinion } = await getStockOpinion(ticker, name);
         setStockDetails(prev => ({
             ...prev,
             [ticker]: { ...prev[ticker], opinion, opinionLoading: false }
@@ -110,7 +169,6 @@ function Dashboard() {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // If stock data is already present, just fetch opinion if needed
     if (stockDetails[upperTicker]) {
       if (!stockDetails[upperTicker].opinion && !stockDetails[upperTicker].opinionLoading) {
         fetchOpinionForStock(upperTicker, stockDetails[upperTicker].stock.name);
@@ -121,12 +179,12 @@ function Dashboard() {
     setIsGraphLoading(true);
 
     try {
-        const dataArray = await getStockData({ tickers: [upperTicker] });
+        const dataArray = await getStockData([upperTicker]);
 
         if (!dataArray || dataArray.length === 0) {
           toast({
               title: "Data Not Found",
-              description: `Could not load data for ${upperTicker}. The API may be busy or the ticker may not be supported. Please try again shortly.`,
+              description: `Could not load data for ${upperTicker}. The service may be busy or the ticker may not be supported. Please try again shortly.`,
               variant: "destructive",
           });
           setIsGraphLoading(false);
@@ -137,17 +195,15 @@ function Dashboard() {
         setStockDetails(prev => ({ ...prev, [upperTicker]: { ...data, opinionLoading: true } }));
         setWatchlist(prev => {
             const stockExists = prev.some(s => s.ticker === upperTicker);
-            // Add to watchlist if it's a new stock, otherwise update existing entry
             return !stockExists ? [data.stock, ...prev] : prev.map(s => s.ticker === upperTicker ? data.stock : s);
         });
 
-        // Fetch opinion for the newly selected stock
         fetchOpinionForStock(upperTicker, data.stock.name);
 
     } catch (error) {
         console.error(`Failed to load stock details for ${upperTicker}:`, error);
         toast({
-            title: "API Error",
+            title: "Error",
             description: `An unexpected error occurred while loading data for ${upperTicker}.`,
             variant: "destructive",
         });
@@ -156,17 +212,15 @@ function Dashboard() {
     }
   }, [stockDetails, toast, fetchOpinionForStock]);
 
-  // Effect for initial data load of the whole watchlist
   useEffect(() => {
     const loadInitialData = async () => {
-      // Don't run this if data is already loaded or a search is in progress
       if (initialLoadComplete) return;
 
       setIsGraphLoading(true);
 
       const tickers = initialWatchlist.map(s => s.ticker);
       try {
-        const dataArray = await getStockData({ tickers });
+        const dataArray = await getStockData(tickers);
 
         if (!dataArray || dataArray.length === 0) {
           throw new Error("Initial watchlist data could not be loaded.");
@@ -183,7 +237,6 @@ function Dashboard() {
         setStockDetails(newDetails);
         setWatchlist(newWatchlist);
         
-        // Select the first stock and fetch its opinion
         const firstTicker = newWatchlist[0]?.ticker;
         if (firstTicker) {
             setSelectedTicker(firstTicker);
@@ -193,7 +246,7 @@ function Dashboard() {
       } catch (error) {
         console.error("Failed to load initial watchlist:", error);
         toast({
-          title: "API Error",
+          title: "Error",
           description: "Could not load initial watchlist data. Please refresh.",
           variant: "destructive",
         });
@@ -204,11 +257,8 @@ function Dashboard() {
     };
 
     loadInitialData();
-    // Disabled exhaustive-deps because this should only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialLoadComplete, fetchOpinionForStock, toast]);
   
-  // Effect to handle subsequent searches from the URL
   useEffect(() => {
     const searchTicker = searchParams.get('ticker')?.toUpperCase();
     if (searchTicker && initialLoadComplete && searchTicker !== selectedTicker) {
@@ -274,7 +324,7 @@ function Dashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
                 <XAxis dataKey="date" />
-                <YAxis domain={chartDomain} tickFormatter={(value) => `₹${value}`} />
+                <YAxis domain={chartDomain} tickFormatter={(value) => `₹${value.toFixed(0)}`} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
@@ -289,7 +339,7 @@ function Dashboard() {
                               item.value &&
                               <div key={item.dataKey} className="flex flex-col">
                                 <span className="text-[0.70rem] uppercase text-muted-foreground">{item.name}</span>
-                                <span className="font-bold" style={{color: item.color}}>₹{item.value?.toLocaleString()}</span>
+                                <span className="font-bold" style={{color: item.color}}>₹{item.value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
                             ))}
                           </div>
