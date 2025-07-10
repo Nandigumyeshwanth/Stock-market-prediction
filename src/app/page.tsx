@@ -329,7 +329,7 @@ function Dashboard() {
                     onClick={() => handleStockSelection(stock.ticker)}
                     className={cn(
                       "transition-colors border-border/20",
-                      stock.price > 0 ? "cursor-pointer" : "",
+                      initialLoadComplete ? "cursor-pointer" : "",
                       "data-[state=selected]:bg-muted/50"
                     )}
                     data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
