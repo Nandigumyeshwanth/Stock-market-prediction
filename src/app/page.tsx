@@ -1,3 +1,4 @@
+
 "use client";
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
@@ -13,12 +14,13 @@ import {
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { MainLayout } from "@/components/main-layout";
 import type { Index, Stock, ChartData } from "@/lib/types";
-import { ArrowDownRight, ArrowUpRight, Lightbulb, Loader2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Loader2, PlusCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getStockData, getStockOpinion } from "@/ai/flows/stock-flow";
+import { getStockData } from "@/ai/flows/stock-flow";
+import { Button } from "@/components/ui/button";
 
 
 type StockData = {
@@ -38,21 +40,16 @@ const initialWatchlist: Stock[] = [
     { ticker: "TCS", name: "Tata Consultancy Services Ltd.", price: 0, change: 0, changePercent: 0 },
     { ticker: "BHARTIARTL", name: "Bharti Airtel Ltd.", price: 0, change: 0, changePercent: 0 },
     { ticker: "ICICIBANK", name: "ICICI Bank Ltd.", price: 0, change: 0, changePercent: 0 },
-    { ticker: "SBIN", name: "State Bank of India", price: 0, change: 0, changePercent: 0 },
-    { ticker: "INFY", name: "Infosys Ltd.", price: 0, change: 0, changePercent: 0 },
-    { ticker: "ITC", name: "ITC Ltd.", price: 0, change: 0, changePercent: 0 },
 ];
 
-type StockDetailsState = StockData & {
-  opinion?: string;
-  opinionLoading?: boolean;
-};
+type StockDetailsState = StockData;
 
 function Dashboard() {
   const searchParams = useSearchParams();
   const [watchlist, setWatchlist] = useState<Stock[]>(initialWatchlist);
   const [stockDetails, setStockDetails] = useState<Record<string, StockDetailsState>>({});
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [stockToAdd, setStockToAdd] = useState<Stock | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const graphCardRef = useRef<HTMLDivElement>(null);
@@ -81,43 +78,18 @@ function Dashboard() {
   const selectedStockData = selectedTicker ? stockDetails[selectedTicker] : null;
   const selectedStock = selectedStockData?.stock;
   const currentChartData = selectedStockData?.chartData || [];
-  const currentOpinion = selectedStockData?.opinion;
-  const isOpinionLoading = selectedTicker ? stockDetails[selectedTicker]?.opinionLoading : false;
   const chartDomain = getChartDomain(currentChartData);
 
-  const fetchOpinionForStock = useCallback(async (ticker: string, name: string) => {
-    setStockDetails(prev => ({
-        ...prev,
-        [ticker]: { ...(prev[ticker] as StockDetailsState), opinionLoading: true }
-    }));
-
-    try {
-        const { recommendation } = await getStockOpinion({ticker, name});
-        setStockDetails(prev => ({
-            ...prev,
-            [ticker]: { ...prev[ticker], opinion: recommendation, opinionLoading: false }
-        }));
-    } catch (error) {
-        console.error(`Failed to fetch opinion for ${ticker}:`, error);
-        setStockDetails(prev => ({
-            ...prev,
-            [ticker]: { ...prev[ticker], opinion: "Could not load AI opinion.", opinionLoading: false }
-        }));
-    }
-  }, []);
-  
   const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
     setSelectedTicker(upperTicker);
+    setStockToAdd(null);
 
     if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     if (stockDetails[upperTicker]) {
-      if (!stockDetails[upperTicker].opinion && !stockDetails[upperTicker].opinionLoading) {
-        fetchOpinionForStock(upperTicker, stockDetails[upperTicker].stock.name);
-      }
       return;
     }
     
@@ -137,13 +109,12 @@ function Dashboard() {
         }
         const data = dataArray[0];
 
-        setStockDetails(prev => ({ ...prev, [upperTicker]: { ...data, opinionLoading: true } }));
-        setWatchlist(prev => {
-            const stockExists = prev.some(s => s.ticker === upperTicker);
-            return !stockExists ? [data.stock, ...prev] : prev.map(s => s.ticker === upperTicker ? data.stock : s);
-        });
-
-        fetchOpinionForStock(upperTicker, data.stock.name);
+        setStockDetails(prev => ({ ...prev, [upperTicker]: data }));
+        
+        const stockExistsInWatchlist = watchlist.some(s => s.ticker === upperTicker);
+        if (!stockExistsInWatchlist) {
+            setStockToAdd(data.stock);
+        }
 
     } catch (error) {
         console.error(`Failed to load stock details for ${upperTicker}:`, error);
@@ -155,7 +126,23 @@ function Dashboard() {
     } finally {
         setIsGraphLoading(false);
     }
-  }, [stockDetails, toast, fetchOpinionForStock]);
+  }, [stockDetails, toast, watchlist]);
+
+  const confirmAddToWatchlist = () => {
+    if (stockToAdd) {
+        setWatchlist(prev => [stockToAdd, ...prev]);
+        setStockToAdd(null);
+        toast({
+            title: "Stock Added",
+            description: `${stockToAdd.ticker} has been added to your watchlist.`,
+        });
+    }
+  };
+
+  const cancelAddToWatchlist = () => {
+    setStockToAdd(null);
+  };
+
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -175,7 +162,7 @@ function Dashboard() {
         const newWatchlist: Stock[] = [];
 
         dataArray.forEach(data => {
-          newDetails[data.stock.ticker] = { ...data, opinion: undefined, opinionLoading: false };
+          newDetails[data.stock.ticker] = data;
           newWatchlist.push(data.stock);
         });
         
@@ -185,7 +172,6 @@ function Dashboard() {
         const firstTicker = newWatchlist[0]?.ticker;
         if (firstTicker) {
             setSelectedTicker(firstTicker);
-            fetchOpinionForStock(firstTicker, newWatchlist[0].name);
         }
 
       } catch (error) {
@@ -202,7 +188,7 @@ function Dashboard() {
     };
 
     loadInitialData();
-  }, [initialLoadComplete, fetchOpinionForStock, toast]);
+  }, [initialLoadComplete, toast]);
   
   useEffect(() => {
     const searchTicker = searchParams.get('ticker')?.toUpperCase();
@@ -219,7 +205,7 @@ function Dashboard() {
             <p className="text-muted-foreground">Welcome to your Infinytix dashboard.</p>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {indices.map((index) => (
             <Card key={index.name} className="border-border/60">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -246,7 +232,7 @@ function Dashboard() {
         <Card ref={graphCardRef} className="border-border/60">
           <CardHeader>
             {isGraphLoading && !selectedStock ? (
-                <Skeleton className="h-8 w-1/2" />
+                <Skeleton className="h-8 w-1/2 rounded-md" />
             ) : (
                 <>
                 <CardTitle>{selectedStock?.ticker} - {selectedStock?.name} Performance</CardTitle>
@@ -309,6 +295,18 @@ function Dashboard() {
           </CardContent>
         </Card>
 
+        {stockToAdd && (
+            <Card className="border-border/60 bg-secondary/30">
+                <CardContent className="p-4 flex items-center justify-between">
+                    <p>Do you want to add <Badge variant="outline">{stockToAdd.ticker}</Badge> to the watchlist?</p>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={cancelAddToWatchlist}>No</Button>
+                        <Button size="sm" onClick={confirmAddToWatchlist}>Yes, Add</Button>
+                    </div>
+                </CardContent>
+            </Card>
+        )}
+
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle>Watchlist</CardTitle>
@@ -340,7 +338,7 @@ function Dashboard() {
                     </TableCell>
                     <TableCell>{stock.name}</TableCell>
                     <TableCell className="text-right font-medium">
-                        {stock.price > 0 ? `₹${stock.price.toFixed(2)}` : <Skeleton className="h-5 w-20 float-right" />}
+                        {stock.price > 0 ? `₹${stock.price.toFixed(2)}` : <Skeleton className="h-5 w-20 float-right rounded-md" />}
                     </TableCell>
                     <TableCell
                       className={cn(
@@ -348,7 +346,7 @@ function Dashboard() {
                          stock.price === 0 ? "text-muted-foreground" : stock.changePercent >= 0 ? "text-green-500" : "text-red-500"
                       )}
                     >
-                      {stock.price > 0 ? `${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)` : <Skeleton className="h-5 w-24 float-right" />}
+                      {stock.price > 0 ? `${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)` : <Skeleton className="h-5 w-24 float-right rounded-md" />}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -378,15 +376,15 @@ function DashboardSkeleton() {
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">Welcome to your Infinytix dashboard.</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card><CardHeader><Skeleton className="h-6 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
-          <Card><CardHeader><Skeleton className="h-6 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
-          <Card><CardHeader><Skeleton className="h-6 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-32" /></CardContent></Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card><CardHeader><Skeleton className="h-6 w-24 rounded-md" /></CardHeader><CardContent><Skeleton className="h-8 w-32 rounded-md" /></CardContent></Card>
+          <Card><CardHeader><Skeleton className="h-6 w-24 rounded-md" /></CardHeader><CardContent><Skeleton className="h-8 w-32 rounded-md" /></CardContent></Card>
+          <Card><CardHeader><Skeleton className="h-6 w-24 rounded-md" /></CardHeader><CardContent><Skeleton className="h-8 w-32 rounded-md" /></CardContent></Card>
         </div>
         <Card className="border-border/60">
           <CardHeader>
-            <Skeleton className="h-8 w-1/2" />
-            <Skeleton className="h-4 w-1/3 mt-1" />
+            <Skeleton className="h-8 w-1/2 rounded-md" />
+            <Skeleton className="h-4 w-1/3 mt-1 rounded-md" />
           </CardHeader>
           <CardContent className="h-[350px] w-full p-2">
             <div className="h-full w-full flex items-center justify-center">
@@ -395,21 +393,7 @@ function DashboardSkeleton() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/60">
-          <CardHeader>
-             <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-6 w-6 text-yellow-400" />
-              My Opinion
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-          </CardContent>
-        </Card>
+        
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle>Watchlist</CardTitle>
@@ -417,11 +401,11 @@ function DashboardSkeleton() {
           </CardHeader>
           <CardContent>
              <div className="space-y-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full rounded-md" />
+                <Skeleton className="h-8 w-full rounded-md" />
+                <Skeleton className="h-8 w-full rounded-md" />
+                <Skeleton className="h-8 w-full rounded-md" />
+                <Skeleton className="h-8 w-full rounded-md" />
               </div>
           </CardContent>
         </Card>
