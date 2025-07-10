@@ -18,68 +18,13 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { getStockData, getStockOpinion } from "@/ai/flows/stock-flow";
+
 
 type StockData = {
   stock: Stock;
   chartData: ChartData[];
 };
-
-// --- Mock Data Generation ---
-
-const generateMockStockData = (ticker: string): StockData => {
-    const price = Math.random() * (8000 - 50) + 50;
-    const change = price * (Math.random() * 0.1 - 0.05); // -5% to +5% change
-    const changePercent = (change / (price - change)) * 100;
-  
-    const stock = {
-      ticker,
-      name: `${ticker.charAt(0)}${ticker.slice(1).toLowerCase()} Inc.`, // e.g. RELIANCE -> Reliance Inc.
-      price,
-      change,
-      changePercent,
-    };
-  
-    const chartData: ChartData[] = [];
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
-    let lastPrice = price * (Math.random() * 0.2 + 0.9); // Start historical data around -10% to +10% of current price
-  
-    // Generate historical data
-    for (let i = 0; i < 6; i++) {
-        const fluctuation = lastPrice * (Math.random() * 0.1 - 0.045); // Fluctuate for history
-        lastPrice += fluctuation;
-        chartData.push({ date: months[i], price: lastPrice });
-    }
-  
-    // Generate prediction data (continuous from historical)
-    let lastPrediction = lastPrice;
-    for (let i = 0; i < 10; i++) {
-        const fluctuation = lastPrediction * (Math.random() * 0.1 - 0.04); // Fluctuate for prediction
-        lastPrediction += fluctuation;
-        if (i < 6) {
-            chartData[i].prediction = lastPrediction;
-        } else {
-            chartData.push({ date: months[i], prediction: lastPrediction });
-        }
-    }
-  
-    return { stock, chartData };
-};
-
-const getStockData = async (tickers: string[]): Promise<StockData[]> => {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return tickers.map(ticker => generateMockStockData(ticker));
-};
-
-const getStockOpinion = async (ticker: string, name: string): Promise<{ opinion: string }> => {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    return {
-        opinion: `Disclaimer: This is an AI-generated analysis and not financial advice. Always conduct your own research. ${name} (${ticker}) shows potential for growth due to recent market trends, but faces challenges from competitors.`
-    };
-};
-
-// --- End of Mock Data Generation ---
-
 
 const indices: Index[] = [
   { name: "NIFTY 50", value: "23,537.85", change: "+66.70", changePercent: 0.28 },
@@ -147,7 +92,7 @@ function Dashboard() {
     }));
 
     try {
-        const { opinion } = await getStockOpinion(ticker, name);
+        const { opinion } = await getStockOpinion({ticker, name});
         setStockDetails(prev => ({
             ...prev,
             [ticker]: { ...prev[ticker], opinion, opinionLoading: false }
@@ -179,12 +124,12 @@ function Dashboard() {
     setIsGraphLoading(true);
 
     try {
-        const dataArray = await getStockData([upperTicker]);
+        const dataArray = await getStockData({ tickers: [upperTicker] });
 
         if (!dataArray || dataArray.length === 0) {
           toast({
               title: "Data Not Found",
-              description: `Could not load data for ${upperTicker}. The service may be busy or the ticker may not be supported. Please try again shortly.`,
+              description: `Could not load data for ${upperTicker}. The API may be busy or the ticker may not be supported. Please try again shortly.`,
               variant: "destructive",
           });
           setIsGraphLoading(false);
@@ -220,7 +165,7 @@ function Dashboard() {
 
       const tickers = initialWatchlist.map(s => s.ticker);
       try {
-        const dataArray = await getStockData(tickers);
+        const dataArray = await getStockData({ tickers });
 
         if (!dataArray || dataArray.length === 0) {
           throw new Error("Initial watchlist data could not be loaded.");
@@ -246,7 +191,7 @@ function Dashboard() {
       } catch (error) {
         console.error("Failed to load initial watchlist:", error);
         toast({
-          title: "Error",
+          title: "API Error",
           description: "Could not load initial watchlist data. Please refresh.",
           variant: "destructive",
         });
