@@ -83,7 +83,7 @@ const chartDataPrompt = ai.definePrompt({
 
 // --- Fallback Data Generation ---
 const getStockInfoFromRealData = (ticker: string): Stock => {
-    const lookupTicker = ticker.toUpperCase().replace(/\s/g, '');
+    const lookupTicker = ticker.toUpperCase().replace(/\s|&/g, (match) => (match === '&' ? '_AND_' : ''));
     const stock = REAL_STOCK_DATA[lookupTicker];
     if (stock) {
         const price = stock.price;

@@ -24,7 +24,7 @@ export const REAL_STOCK_DATA: Record<string, RealStockInfo> = {
   "KOTAKBANK": { name: "Kotak Mahindra Bank Ltd.", price: 2223.70, changePercent: -0.25 },
   "SUNPHARMA": { name: "Sun Pharmaceutical Industries Ltd.", price: 1662.20, changePercent: -0.43 },
   "MARUTI": { name: "Maruti Suzuki India Ltd.", price: 12646.00, changePercent: 1.41 },
-  "M&M": { name: "Mahindra & Mahindra Ltd.", price: 3162.90, changePercent: -0.42 },
+  "M_AND_M": { name: "Mahindra & Mahindra Ltd.", price: 3162.90, changePercent: -0.42 },
   "ULTRACEMCO": { name: "UltraTech Cement Ltd.", price: 12573.00, changePercent: 0.09 },
   "AXISBANK": { name: "Axis Bank Ltd.", price: 1167.70, changePercent: 0.26 },
   "NTPC": { name: "NTPC Ltd.", price: 342.20, changePercent: -0.52 },

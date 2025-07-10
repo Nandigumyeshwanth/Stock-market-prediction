@@ -32,7 +32,7 @@ const initialWatchlistTickers: string[] = [
     "RELIANCE",
     "HDFCBANK",
     "TCS",
-    "BHARTIARTL",
+    "M_AND_M",
     "ICICIBANK",
 ];
 
@@ -69,22 +69,16 @@ function Dashboard() {
     return [Math.floor(min - padding), Math.ceil(max + padding)];
   };
 
-  const selectedStockData = selectedTicker ? stockDetails[selectedTicker] : null;
-  const selectedStock = selectedStockData?.stock;
-  const currentChartData = selectedStockData?.chartData || [];
-  const chartDomain = getChartDomain(currentChartData);
-
   const handleStockSelection = useCallback(async (ticker: string) => {
     const upperTicker = ticker.toUpperCase().replace(/\s/g, '');
-
-    setSelectedTicker(upperTicker);
+    
     setStockToAdd(null);
-  
+    setSelectedTicker(upperTicker);
+
     if (graphCardRef.current) {
         graphCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   
-    // If data already exists, we don't need to fetch. The UI will update from the state change.
     if (stockDetails[upperTicker]) {
       return;
     }
@@ -124,6 +118,10 @@ function Dashboard() {
     }
   }, [stockDetails, toast, watchlist]);
 
+  const selectedStockData = selectedTicker ? stockDetails[selectedTicker] : null;
+  const selectedStock = selectedStockData?.stock;
+  const currentChartData = selectedStockData?.chartData || [];
+  const chartDomain = getChartDomain(currentChartData);
 
   const confirmAddToWatchlist = () => {
     if (stockToAdd) {
@@ -333,8 +331,7 @@ function Dashboard() {
                     key={stock.ticker}
                     onClick={() => handleStockSelection(stock.ticker)}
                     className={cn(
-                      "transition-colors border-border/20",
-                       initialLoadComplete && "cursor-pointer",
+                      "transition-colors border-border/20 cursor-pointer",
                       "data-[state=selected]:bg-muted/50"
                     )}
                     data-state={selectedTicker === stock.ticker ? "selected" : "unselected"}
