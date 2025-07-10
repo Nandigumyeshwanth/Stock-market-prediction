@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -70,9 +71,9 @@ export default function ForgotPasswordPage() {
       <Card className="mx-auto max-w-sm">
         <CardHeader className="items-center text-center">
             <MailCheck className="h-12 w-12 text-green-500 mb-4" />
-            <CardTitle className="text-2xl">Check your email</CardTitle>
+            <CardTitle className="text-2xl">Reset Link Simulated</CardTitle>
             <CardDescription>
-                We've sent a password reset link to the email address you provided.
+                In a real app, a password reset link would be sent to this email address.
             </CardDescription>
         </CardHeader>
         <CardContent>
